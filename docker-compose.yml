@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fdax
+      POSTGRES_PASSWORD: fdax
+      POSTGRES_DB: fdax
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdax -d fdax"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ingest:
+    build:
+      context: ./ingest
+    restart: unless-stopped
+    command: ["follow"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fdax:fdax@db:5432/fdax
+      RAW_DIR: /data/raw
+    volumes:
+      - ./data/raw:/data/raw
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fdax:fdax@db:5432/fdax
+    ports:
+      - "8001:8000"
+
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"

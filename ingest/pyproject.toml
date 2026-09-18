@@ -1,0 +1,27 @@
+[project]
+name = "fdax-ingest"
+version = "0.1.0"
+description = "Ingest delayed Eurex FDAX post-trade files from Deutsche Boerse."
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27",
+  "psycopg[binary]>=3.2",
+  "pydantic-settings>=2.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[project.scripts]
+fdax-ingest = "fdax_ingest.cli:main"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
