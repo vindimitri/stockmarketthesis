@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -10,12 +10,24 @@ def dec(value: Decimal | None) -> float | None:
     return float(value)
 
 
+class IngestRunSummary(BaseModel):
+    id: int
+    status: str
+    source: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    records_seen: int | None = None
+    records_kept: int | None = None
+    records_upserted: int | None = None
+    error: str | None = None
+
+
 class HealthResponse(BaseModel):
     ok: bool
     database: str
     timezone: str
     tape_delay_seconds: int = 900
-    last_ingest: dict | None = None
+    last_ingest: IngestRunSummary | None = None
 
 
 class DayRow(BaseModel):

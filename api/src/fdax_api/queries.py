@@ -19,7 +19,14 @@ def last_ingest(conn: psycopg.Connection) -> dict | None:
         LIMIT 1
         """
     ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    data = dict(row)
+    if data.get("finished_at"):
+        data["finished_at"] = data["finished_at"].isoformat()
+    if data.get("started_at"):
+        data["started_at"] = data["started_at"].isoformat()
+    return data
 
 
 def list_days(conn: psycopg.Connection) -> list[dict]:

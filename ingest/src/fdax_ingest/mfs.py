@@ -63,9 +63,6 @@ class MfsClient:
         assert last_error is not None
         raise last_error
 
-    def iter_records(self, payload: bytes) -> Iterator[dict[str, Any]]:
-        yield from iter_ndjson(payload)
-
 
 def iter_ndjson(payload: bytes) -> Iterator[dict[str, Any]]:
     if not payload:

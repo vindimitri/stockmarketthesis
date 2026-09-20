@@ -10,17 +10,17 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { LinePoint } from "./candles";
+import type { LinePoint } from "./linePoints";
 import { berlinAxisTickLabel, berlinTimeLabel, formatPrice } from "./format";
 
-const BG = "#f4f4f4";
-const GRID = "#d4d4d8";
-const LINE = "#1e6fd9";
-const FILL_TOP = "rgba(30, 111, 217, 0.34)";
-const FILL_BOTTOM = "rgba(30, 111, 217, 0.02)";
-const MUTED = "#52525b";
-const TICK_UP = "#16a34a";
-const TICK_DOWN = "#e11d48";
+const BG = "#ffffff";
+const GRID = "#eceff6";
+const LINE = "#1e6ee6";
+const FILL_TOP = "rgba(30, 110, 230, 0.18)";
+const FILL_BOTTOM = "rgba(30, 110, 230, 0.02)";
+const MUTED = "#5a5e66";
+const TICK_UP = "#229f6c";
+const TICK_DOWN = "#f02945";
 const TICK_FLASH_MS = 280;
 
 type Hover = { time: number; price: number } | null;
@@ -35,6 +35,7 @@ type Props = {
   points: LinePoint[];
   viewKey: string;
   lastTick?: TickPrint | null;
+  showSeconds?: boolean;
 };
 
 function axisTickLabel(time: Time): string {
@@ -52,7 +53,7 @@ function tickColor(prev: LinePoint[], next: LinePoint[], fallback: string): stri
   return fallback;
 }
 
-export function PriceChart({ points, viewKey, lastTick = null }: Props) {
+export function PriceChart({ points, viewKey, lastTick = null, showSeconds = false }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -83,7 +84,7 @@ export function PriceChart({ points, viewKey, lastTick = null }: Props) {
       timeScale: {
         borderColor: GRID,
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: showSeconds,
         rightOffset: 6,
         tickMarkFormatter: axisTickLabel,
       },
@@ -94,8 +95,8 @@ export function PriceChart({ points, viewKey, lastTick = null }: Props) {
       },
       crosshair: {
         mode: 0,
-        vertLine: { color: "#d4d4d8", labelBackgroundColor: "#27272a" },
-        horzLine: { color: "#d4d4d8", labelBackgroundColor: "#27272a" },
+        vertLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
+        horzLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
       },
       autoSize: true,
     });
@@ -151,7 +152,7 @@ export function PriceChart({ points, viewKey, lastTick = null }: Props) {
       seriesRef.current = null;
       tickRef.current = null;
     };
-  }, []);
+  }, [showSeconds]);
 
   const viewKeyRef = useRef(viewKey);
   const prevPointsRef = useRef<LinePoint[]>([]);
@@ -255,12 +256,12 @@ export function PriceChart({ points, viewKey, lastTick = null }: Props) {
   }, [points, viewKey, lastTick]);
 
   return (
-    <div className="relative h-full min-h-[360px]">
+    <div className="relative h-full min-h-[240px]">
       {hover && (
-        <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-zinc-600">
-          <span className="mono text-zinc-900">{berlinTimeLabel(hover.time, true)}</span>
+        <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[11px] text-desk-ink-muted">
+          <span className="mono text-desk-ink">{berlinTimeLabel(hover.time, true)}</span>
           <span>
-            Preis <span className="mono text-blue-800">{formatPrice(hover.price)}</span>
+            Preis <span className="mono text-desk-accent">{formatPrice(hover.price)}</span>
           </span>
         </div>
       )}

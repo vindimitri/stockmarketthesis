@@ -3,18 +3,243 @@
 @theme {
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-desk-bg: #eceff6;
+  --color-desk-surface: #ffffff;
+  --color-desk-muted: #f5f7fb;
+  --color-desk-border: #dcdfe5;
+  --color-desk-border-soft: #eceff6;
+
+  --color-desk-ink: #0b0e13;
+  --color-desk-ink-muted: #5a5e66;
+  --color-desk-ink-faint: #a6a8ad;
+
+  --color-desk-accent: #1e6ee6;
+
+  --color-desk-up: #229f6c;
+  --color-desk-down: #f02945;
+  --color-desk-down-soft: #fde6ea;
+
+  --shadow-desk-md: 0 18px 40px rgb(11 14 19 / 0.12);
 }
 
 html,
 body,
 #root {
   height: 100%;
+  min-height: 100dvh;
 }
 
 body {
   font-family: var(--font-sans);
+  background: var(--color-desk-bg);
+  color: var(--color-desk-ink);
 }
 
 .mono {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  height: 100%;
+  overflow: auto;
+}
+
+.desk-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  background: var(--color-desk-surface);
+  border: 1px solid var(--color-desk-border);
+}
+
+.desk-header {
+  height: 9.5rem;
+  min-height: 9.5rem;
+  padding: 0 1.25rem;
+  overflow: hidden;
+}
+
+.desk-header h1 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.desk-toolbar .desk-label {
+  font-size: 0.6875rem;
+}
+
+.desk-toolbar .desk-segment-btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+}
+
+.desk-toolbar .desk-input,
+.desk-toolbar .desk-btn {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+.desk-figure {
+  height: calc(9.5rem - 0.75rem);
+  width: auto;
+  object-fit: contain;
+  object-position: center;
+  flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.desk-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-desk-ink-faint);
+}
+
+.desk-segment {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--color-desk-border);
+  background: var(--color-desk-surface);
+}
+
+.desk-segment-btn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-desk-ink-muted);
+  cursor: pointer;
+  border-right: 1px solid var(--color-desk-border);
+  background: transparent;
+}
+
+.desk-segment-btn:last-child {
+  border-right: 0;
+}
+
+.desk-segment-btn:hover:not(.desk-segment-btn-active) {
+  color: var(--color-desk-ink);
+  background: var(--color-desk-muted);
+}
+
+.desk-segment-btn-active {
+  color: #ffffff;
+  background: var(--color-desk-accent);
+}
+
+.desk-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 3.25rem;
+}
+
+.desk-stat-label {
+  font-size: 0.6875rem;
+  color: var(--color-desk-ink-faint);
+}
+
+.desk-stat-value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-desk-ink);
+}
+
+.desk-input {
+  border: 1px solid var(--color-desk-border);
+  background: var(--color-desk-surface);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--color-desk-ink);
+  outline: none;
+  color-scheme: light;
+  border-radius: 0;
+}
+
+.desk-input:focus,
+.desk-input:focus-visible,
+.desk-btn:focus-visible,
+.desk-segment-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-desk-accent);
+  box-shadow: none;
+}
+
+.desk-btn {
+  border: 1px solid var(--color-desk-border);
+  background: var(--color-desk-surface);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  color: var(--color-desk-ink);
+  cursor: pointer;
+}
+
+.desk-btn:hover:not(:disabled) {
+  background: var(--color-desk-muted);
+  border-color: var(--color-desk-ink-muted);
+}
+
+.desk-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.desk-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-desk-surface);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-desk-ink-faint);
+  border-bottom: 1px solid var(--color-desk-border);
+}
+
+.desk-table-row {
+  border-top: 1px solid var(--color-desk-border-soft);
+}
+
+.desk-table-row:hover {
+  background: var(--color-desk-muted);
+}
+
+.desk-quote-chip {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.desk-modal-scrim {
+  background: rgb(11 14 19 / 0.28);
+}
+
+.desk-dialog {
+  background: var(--color-desk-surface);
+  border: 1px solid var(--color-desk-border);
+  box-shadow: var(--shadow-desk-md);
+}
+
+@media (max-width: 640px) {
+  .desk-header {
+    height: auto;
+    min-height: 0;
+    padding: 0.85rem 1rem;
+    overflow: visible;
+  }
+
+  .desk-toolbar {
+    height: auto;
+    min-height: 0;
+  }
+
+  .desk-figure {
+    height: 5.75rem;
+  }
 }

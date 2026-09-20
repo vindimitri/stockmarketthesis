@@ -22,14 +22,13 @@ export function formatPct(value: number | null | undefined): string {
   })} %`;
 }
 
-export function formatClock(iso: string, withMs = false): string {
-  const date = new Date(iso);
-  return date.toLocaleTimeString("de-DE", {
+export function formatClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("de-DE", {
     timeZone: berlin,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    ...(withMs ? { fractionalSecondDigits: 3 } : {}),
+    fractionalSecondDigits: 3,
   });
 }
 
@@ -55,6 +54,17 @@ export function formatMonthTitle(year: number, monthIndex: number): string {
     month: "long",
     year: "numeric",
   });
+}
+
+export function parseYmd(value: string | undefined): { year: number; month: number; day: number } | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]) - 1,
+    day: Number(match[3]),
+  };
 }
 
 export function berlinTimeLabel(unixSec: number, withSeconds: boolean): string {
@@ -101,19 +111,65 @@ export function berlinTodayYmd(now = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-export function berlinMinutesOfDay(iso: string): number {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: berlin,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(iso));
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
-  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
-  return hour * 60 + minute;
+const berlinWallFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: berlin,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+function berlinWallParts(ms: number) {
+  const parts = berlinWallFmt.formatToParts(new Date(ms));
+  const num = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+  return {
+    year: num("year"),
+    month: num("month"),
+    day: num("day"),
+    hour: num("hour"),
+    minute: num("minute"),
+    second: num("second"),
+  };
 }
 
-export function inBerlinHourRange(iso: string, startHour: number, endHour: number): boolean {
-  const minutes = berlinMinutesOfDay(iso);
-  return minutes >= startHour * 60 && minutes < endHour * 60;
+/** UTC millis for a Berlin wall-clock time on `ymd` (YYYY-MM-DD). */
+function berlinWallTimeUtcMs(ymd: string, hour: number, minute = 0, second = 0): number {
+  const [year, month, day] = ymd.split("-").map(Number);
+  let utc = Date.UTC(year, month - 1, day, hour, minute, second);
+  for (let i = 0; i < 4; i += 1) {
+    const got = berlinWallParts(utc);
+    const gotUtc = Date.UTC(got.year, got.month - 1, got.day, got.hour, got.minute, got.second);
+    const wantUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+    const delta = wantUtc - gotUtc;
+    if (delta === 0) break;
+    utc += delta;
+  }
+  return utc;
+}
+
+function lowerBoundByEventTime(trades: { event_time: string }[], ms: number): number {
+  let lo = 0;
+  let hi = trades.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (Date.parse(trades[mid].event_time) < ms) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+export function sliceTradesByBerlinHours<T extends { event_time: string }>(
+  trades: T[],
+  ymd: string,
+  startHour: number,
+  endHour: number,
+): T[] {
+  if (!trades.length || !ymd) return trades;
+  const startMs = berlinWallTimeUtcMs(ymd, startHour);
+  const endMs = berlinWallTimeUtcMs(ymd, endHour);
+  return trades.slice(lowerBoundByEventTime(trades, startMs), lowerBoundByEventTime(trades, endMs));
 }

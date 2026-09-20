@@ -49,8 +49,8 @@ python -m fdax_ingest ingest-daily --date 2026-09-16
 Docker:
 
 ```bash
-docker compose --profile ingest run --rm ingest probe
-docker compose --profile ingest run --rm ingest ingest-range --start 2026-09-17T17:00 --end 2026-09-17T18:00
+docker compose run --rm ingest probe
+docker compose run --rm ingest ingest-range --start 2026-09-17T17:00 --end 2026-09-17T18:00
 ```
 
 Rohdateien liegen unter `data/raw/` (nicht committen).
@@ -84,7 +84,7 @@ Dann:
 
 ## GUI (Schritt 4)
 
-Vite + React, Lightweight Charts, Tailwind. Eine Seite: Tag wählen, Kennzahlen, 1-Sekunden-Kerzen 17:00-18:00 Berlin, Trades.
+Vite + React, Lightweight Charts, Tailwind. Eine Seite: Tag wählen, Kennzahlen, Chart (ganzer Tag oder 17–18 Uhr), Trades.
 
 Lokal (API muss auf Port 8001 laufen):
 

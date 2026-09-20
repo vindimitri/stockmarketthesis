@@ -24,3 +24,18 @@ def test_pending_bootstraps_all_minutes_on_empty_db():
     ]
     pending = pending_minute_files(names, set(), None)
     assert pending == names
+
+
+def test_pending_skips_weekend_and_overnight_minutes():
+    names = [
+        "DEUR-posttrade-2026-09-18T14_40.json.gz",
+        "DEUR-posttrade-2026-09-18T21_10.json.gz",
+        "DEUR-posttrade-2026-09-19T10_00.json.gz",
+        "DEUR-posttrade-2026-09-21T00_00.json.gz",
+        "DEUR-posttrade-2026-09-21T00_20.json.gz",
+    ]
+    pending = pending_minute_files(names, set(), None)
+    assert pending == [
+        "DEUR-posttrade-2026-09-18T14_40.json.gz",
+        "DEUR-posttrade-2026-09-21T00_20.json.gz",
+    ]

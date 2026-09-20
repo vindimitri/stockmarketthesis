@@ -18,6 +18,13 @@ export function mergeTrades(existing: TradeRow[], incoming: TradeRow[]): TradeRo
   const seen = new Set(existing.map((row) => row.external_id));
   const extra = incoming.filter((row) => !seen.has(row.external_id));
   if (!extra.length) return existing;
+  const last = existing.at(-1);
+  const first = extra[0];
+  const appendsInOrder =
+    !last ||
+    last.event_time < first.event_time ||
+    (last.event_time === first.event_time && (last.id ?? 0) <= (first.id ?? 0));
+  if (appendsInOrder) return [...existing, ...extra];
   return [...existing, ...extra].sort((a, b) => {
     if (a.event_time < b.event_time) return -1;
     if (a.event_time > b.event_time) return 1;

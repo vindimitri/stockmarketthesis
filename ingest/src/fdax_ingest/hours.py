@@ -5,7 +5,10 @@ from zoneinfo import ZoneInfo
 
 BERLIN = ZoneInfo("Europe/Berlin")
 
-# Continuous FDAX: 00:10 UTC – 22:00 Europe/Berlin (01:10 CET / 02:10 CEST).
+# FDAX continuous trading (Eurex T7): 00:10 UTC until 22:00 Europe/Berlin.
+# Winter 01:10–22:00 CET, summer 02:10–22:00 CEST. Closed weekends and the
+# Eurex all-derivatives holidays (NYD, Good Friday, Easter Monday, 1 May,
+# 24/25/31 Dec). Poll a few minutes early and after close for delayed files.
 OPEN_UTC = time(0, 10)
 CLOSE_BERLIN = time(22, 0)
 OPEN_LEAD = timedelta(minutes=5)
@@ -61,6 +64,25 @@ def should_poll(now: datetime) -> bool:
         return False
     start, end = window
     return start <= now < end
+
+
+def quiet_reason(now: datetime) -> str:
+    """Why follow is idle: weekend, holiday, before_open, after_close, or open."""
+    now = now.astimezone(timezone.utc)
+    berlin_day = now.astimezone(BERLIN).date()
+    if berlin_day.weekday() >= 5:
+        return "weekend"
+    if berlin_day in eurex_closed_dates(berlin_day.year):
+        return "holiday"
+    window = poll_window(berlin_day)
+    if window is None:
+        return "closed"
+    start, end = window
+    if now < start:
+        return "before_open"
+    if now >= end:
+        return "after_close"
+    return "open"
 
 
 def next_poll_resume(now: datetime) -> datetime:

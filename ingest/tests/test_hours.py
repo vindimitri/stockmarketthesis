@@ -6,6 +6,7 @@ from fdax_ingest.hours import (
     is_exchange_day,
     next_poll_resume,
     poll_window,
+    quiet_reason,
     should_poll,
 )
 
@@ -59,3 +60,18 @@ def test_resume_after_friday_close_is_monday_open():
     assert resume == start
     assert resume.astimezone(timezone.utc).hour == 0
     assert resume.astimezone(timezone.utc).minute == 5
+
+
+def test_fdax_trades_on_german_holidays_eurex_stays_open():
+    # German Unity Day / Boxing Day are not Eurex all-derivatives closures.
+    assert is_exchange_day(date(2025, 10, 3))
+    assert is_exchange_day(date(2024, 12, 26))
+    assert should_poll(_at("2025-10-03T12:00:00+02:00"))
+
+
+def test_quiet_reason_weekend_holiday_and_overnight():
+    assert quiet_reason(_at("2026-09-19T12:00:00+02:00")) == "weekend"
+    assert quiet_reason(_at("2026-04-03T12:00:00+02:00")) == "holiday"
+    assert quiet_reason(_at("2026-09-18T01:30:00+02:00")) == "before_open"
+    assert quiet_reason(_at("2026-09-18T23:00:00+02:00")) == "after_close"
+    assert quiet_reason(_at("2026-09-18T10:00:00+02:00")) == "open"

@@ -32,6 +32,7 @@ class TradeStore:
         self.close()
 
     def ensure_schema(self) -> None:
+        """Fallback for DBs that predate ingested_files. Canonical DDL: db/init.sql."""
         with self._conn.cursor() as cur:
             cur.execute(
                 """

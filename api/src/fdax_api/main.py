@@ -55,10 +55,6 @@ def health(conn: Connection = Depends(get_conn)) -> HealthResponse:
     try:
         queries.ping(conn)
         last = queries.last_ingest(conn)
-        if last and last.get("finished_at"):
-            last["finished_at"] = last["finished_at"].isoformat()
-        if last and last.get("started_at"):
-            last["started_at"] = last["started_at"].isoformat()
         return HealthResponse(
             ok=True,
             database="up",
@@ -80,7 +76,7 @@ def _window(
     from_time: str,
     to_time: str,
     conn: Connection,
-) -> tuple:
+) -> tuple[datetime, datetime]:
     if not queries.day_exists(conn, day):
         raise HTTPException(status_code=404, detail=f"Kein gespeicherter Tag {day.isoformat()}")
     start = parse_bound(from_time, field="from")

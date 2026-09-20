@@ -8,7 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fdax_ingest.config import Settings
-from fdax_ingest.hours import next_poll_resume, should_poll
+from fdax_ingest.hours import next_poll_resume, quiet_reason, should_poll
 from fdax_ingest.mfs import MfsClient, is_daily_filename, iter_ndjson, parse_minute_filename
 from fdax_ingest.parse import keep_trade, normalize_trade
 from fdax_ingest.store import TradeStore
@@ -63,10 +63,23 @@ def pending_minute_files(
         ts = parse_minute_filename(name)
         if ts is None or name in already:
             continue
+        if not should_poll(ts):
+            continue
         if cutoff is not None and ts < cutoff:
             continue
         pending.append(name)
     return sorted(pending, key=lambda n: parse_minute_filename(n) or datetime.min)
+
+
+def _count_trades(payloads: dict[str, bytes], isin: str) -> tuple[int, int]:
+    seen = 0
+    kept = 0
+    for payload in payloads.values():
+        for record in iter_ndjson(payload):
+            seen += 1
+            if keep_trade(record, isin):
+                kept += 1
+    return seen, kept
 
 
 def ingest_payloads(
@@ -146,13 +159,7 @@ def ingest_range(
                 time.sleep(0.45)
             payloads[name] = payload
         if dry_run:
-            seen = 0
-            kept = 0
-            for payload in payloads.values():
-                for record in iter_ndjson(payload):
-                    seen += 1
-                    if keep_trade(record, settings.fdax_isin):
-                        kept += 1
+            seen, kept = _count_trades(payloads, settings.fdax_isin)
             return IngestResult(
                 files=list(payloads.keys()),
                 records_seen=seen,
@@ -189,12 +196,7 @@ def ingest_daily(settings: Settings, day: str, *, dry_run: bool = False) -> Inge
         payload = client.download(filename)
         raw_path = save_raw(settings.raw_dir, filename, payload)
         if dry_run:
-            seen = 0
-            kept = 0
-            for record in iter_ndjson(payload):
-                seen += 1
-                if keep_trade(record, settings.fdax_isin):
-                    kept += 1
+            seen, kept = _count_trades({filename: payload}, settings.fdax_isin)
             return IngestResult(
                 files=[filename],
                 records_seen=seen,
@@ -233,7 +235,7 @@ def probe(settings: Settings, limit: int = 8) -> dict:
             payload = client.download(sample_name)
             seen = kept = 0
             first_kept = None
-            for record in client.iter_records(payload):
+            for record in iter_ndjson(payload):
                 seen += 1
                 if keep_trade(record, settings.fdax_isin):
                     kept += 1
@@ -308,6 +310,7 @@ def follow_forever(settings: Settings) -> None:
             print(
                 {
                     "event": "follow_quiet",
+                    "reason": quiet_reason(now),
                     "until": wake.isoformat(),
                     "sleep_s": round(min(wait, 6 * 3600)),
                 },

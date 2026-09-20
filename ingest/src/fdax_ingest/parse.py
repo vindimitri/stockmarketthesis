@@ -4,9 +4,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-FDAX_ISIN = "DE0009652388"
-
-
 def parse_trading_time(value: str) -> datetime:
     """Parse MiFID UTC timestamps that may carry nanoseconds."""
     raw = value.strip()
