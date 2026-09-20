@@ -6,7 +6,13 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fdax_ingest.config import Settings
-from fdax_ingest.pipeline import follow_forever, ingest_daily, ingest_range, probe
+from fdax_ingest.pipeline import (
+    follow_forever,
+    ingest_available_days,
+    ingest_daily,
+    ingest_range,
+    probe,
+)
 
 
 def _parse_local(ts: str, tz_name: str) -> datetime:
@@ -42,6 +48,9 @@ def main(argv: list[str] | None = None) -> int:
     p_day.add_argument("--date", required=True, help="YYYY-MM-DD der daily-Datei")
     p_day.add_argument("--dry-run", action="store_true")
 
+    p_all = sub.add_parser("ingest-available", help="Alle daily-Dateien der Boerse nachladen")
+    p_all.add_argument("--dry-run", action="store_true")
+
     sub.add_parser("follow", help="Neue Minutenfiles dauerhaft nachladen")
 
     args = parser.parse_args(argv)
@@ -62,6 +71,11 @@ def main(argv: list[str] | None = None) -> int:
         result = ingest_daily(settings, args.date, dry_run=args.dry_run)
         print(json.dumps(result.__dict__, indent=2, default=str))
         return 0
+
+    if args.cmd == "ingest-available":
+        result = ingest_available_days(settings, dry_run=args.dry_run)
+        print(json.dumps(result, indent=2, default=str))
+        return 1 if result.get("errors") else 0
 
     if args.cmd == "follow":
         follow_forever(settings)

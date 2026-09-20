@@ -94,3 +94,8 @@ def parse_minute_filename(filename: str) -> datetime | None:
 
 def is_daily_filename(filename: str) -> bool:
     return DAILY_FILE_RE.match(filename) is not None
+
+
+def parse_daily_date(filename: str) -> str | None:
+    match = DAILY_FILE_RE.match(filename)
+    return match.group("date") if match else None

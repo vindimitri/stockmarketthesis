@@ -18,3 +18,4 @@ class Settings(BaseSettings):
     tz: str = "Europe/Berlin"
     user_agent: str = "fdax-ingest/0.1 (private research; delayed MiFID post-trade)"
     follow_poll_seconds: float = 20.0
+    tape_delay_seconds: int = 900

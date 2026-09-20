@@ -3,13 +3,19 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fdax_ingest.config import Settings
 from fdax_ingest.hours import next_poll_resume, quiet_reason, should_poll
-from fdax_ingest.mfs import MfsClient, is_daily_filename, iter_ndjson, parse_minute_filename
+from fdax_ingest.mfs import (
+    MfsClient,
+    is_daily_filename,
+    iter_ndjson,
+    parse_daily_date,
+    parse_minute_filename,
+)
 from fdax_ingest.parse import keep_trade, normalize_trade
 from fdax_ingest.store import TradeStore
 
@@ -53,8 +59,16 @@ def pending_minute_files(
     filenames: list[str],
     already: set[str],
     max_event_time: datetime | None,
+    *,
+    now: datetime | None = None,
+    delay_seconds: int = 900,
 ) -> list[str]:
-    """New minute files at the live edge; skip history already in the DB."""
+    """New minute files at the live edge; skip history already in the DB.
+
+    A file named for minute T is only due after T + delay (MFS is 15 min late).
+    """
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    ready_before = now - timedelta(seconds=delay_seconds)
     cutoff = None
     if max_event_time is not None:
         cutoff = max_event_time.replace(second=0, microsecond=0)
@@ -62,6 +76,8 @@ def pending_minute_files(
     for name in filenames:
         ts = parse_minute_filename(name)
         if ts is None or name in already:
+            continue
+        if ts > ready_before:
             continue
         if not should_poll(ts):
             continue
@@ -220,6 +236,49 @@ def ingest_daily(settings: Settings, day: str, *, dry_run: bool = False) -> Inge
         )
 
 
+def daily_dates_from_listing(filenames: list[str]) -> list[str]:
+    dates = {parse_daily_date(name) for name in filenames}
+    return sorted(day for day in dates if day)
+
+
+def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
+    with MfsClient(settings.mfs_base_url, settings.source_prefix, settings.user_agent) as client:
+        listing = client.list_files()
+        wanted = daily_dates_from_listing(listing.get("CurrentFiles") or [])
+    already: set[str] = set()
+    try:
+        with TradeStore(settings.database_url) as store:
+            store.ensure_schema()
+            already = store.stored_berlin_dates()
+    except Exception:
+        already = set()
+
+    loaded: list[dict] = []
+    skipped = [day for day in wanted if day in already]
+    errors: list[dict] = []
+    for day in wanted:
+        if day in already:
+            continue
+        try:
+            result = ingest_daily(settings, day, dry_run=dry_run)
+            loaded.append(
+                {
+                    "date": day,
+                    "records_kept": result.records_kept,
+                    "records_upserted": result.records_upserted,
+                }
+            )
+            time.sleep(0.45)
+        except Exception as exc:
+            errors.append({"date": day, "error": str(exc)})
+    return {
+        "available": wanted,
+        "loaded": loaded,
+        "skipped": skipped,
+        "errors": errors,
+    }
+
+
 def probe(settings: Settings, limit: int = 8) -> dict:
     with MfsClient(settings.mfs_base_url, settings.source_prefix, settings.user_agent) as client:
         listing = client.list_files()
@@ -264,7 +323,12 @@ def probe(settings: Settings, limit: int = 8) -> dict:
 def follow_once(settings: Settings, store: TradeStore, client: MfsClient) -> dict:
     listing = client.list_files()
     names = listing.get("CurrentFiles") or []
-    wanted = pending_minute_files(names, store.ingested_filenames(), store.max_event_time())
+    wanted = pending_minute_files(
+        names,
+        store.ingested_filenames(),
+        store.max_event_time(),
+        delay_seconds=settings.tape_delay_seconds,
+    )
     if not wanted:
         return {"files": [], "records_upserted": 0, "pending": 0}
 

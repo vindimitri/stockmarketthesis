@@ -24,15 +24,20 @@ export function useDeskData() {
           if (cancelled) return;
           setTapeDelaySeconds(healthRes.tape_delay_seconds);
           setDays(dayRows);
-          setDate((prev) => prev || dayRows[0]?.berlin_date || "");
+          const nextDate = dayRows[0]?.berlin_date || "";
+          setDate((prev) => prev || nextDate);
           setError(null);
+          if (!nextDate) setLoading(false);
           return;
         } catch (err) {
           lastError = err;
           await new Promise((resolve) => window.setTimeout(resolve, 750));
         }
       }
-      if (!cancelled) setError(lastError instanceof Error ? lastError.message : String(lastError));
+      if (!cancelled) {
+        setLoading(false);
+        setError(lastError instanceof Error ? lastError.message : String(lastError));
+      }
     })();
     return () => {
       cancelled = true;

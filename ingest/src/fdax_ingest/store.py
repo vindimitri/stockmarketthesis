@@ -46,6 +46,12 @@ class TradeStore:
             )
         self._conn.commit()
 
+    def stored_berlin_dates(self) -> set[str]:
+        with self._conn.cursor() as cur:
+            cur.execute("SELECT berlin_date::text FROM days")
+            rows = cur.fetchall()
+        return {str(row[0]) for row in rows}
+
     def ingested_filenames(self) -> set[str]:
         with self._conn.cursor() as cur:
             cur.execute("SELECT filename FROM ingested_files")

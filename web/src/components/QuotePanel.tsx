@@ -16,6 +16,7 @@ export function QuotePanel({
   bucketOptions,
   loading,
   hasTrades,
+  hasDays,
   points,
   viewKey,
   lastTick,
@@ -32,6 +33,7 @@ export function QuotePanel({
   bucketOptions: BucketOption[];
   loading: boolean;
   hasTrades: boolean;
+  hasDays: boolean;
   points: LinePoint[];
   viewKey: string;
   lastTick: { time: number; value: number; key: string } | null;
@@ -94,9 +96,11 @@ export function QuotePanel({
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-desk-ink-muted">
-            {windowFilter === "1718"
-              ? "Keine Trades zwischen 17:00 und 18:00."
-              : "Keine Trades für diesen Tag."}
+            {!hasDays
+              ? "Noch keine gespeicherten Tage. Ingest muss erst Daten holen."
+              : windowFilter === "1718"
+                ? "Keine Trades zwischen 17:00 und 18:00."
+                : "Keine Trades für diesen Tag."}
           </div>
         )}
       </div>

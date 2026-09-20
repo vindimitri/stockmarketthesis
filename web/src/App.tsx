@@ -40,6 +40,7 @@ export default function App() {
           bucketOptions={view.bucketOptions}
           loading={loading}
           hasTrades={Boolean(trades.length)}
+          hasDays={Boolean(days.length)}
           points={view.points}
           viewKey={`${date}|${view.windowFilter}|${view.contract}|${view.bucket}`}
           lastTick={view.lastTick}
