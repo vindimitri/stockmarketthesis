@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fdax_ingest.mfs import is_daily_filename, iter_ndjson, parse_minute_filename
 from fdax_ingest.parse import keep_trade, normalize_trade, parse_trading_time
+from fdax_ingest.pipeline import available_dates_from_listing
 from fdax_ingest.pipeline import minute_files_in_window as window_select
 
 FIXTURE = Path(__file__).parent / "fixtures" / "minute_sample.ndjson"
@@ -57,3 +58,12 @@ def test_empty_gzip_yields_no_records():
     empty = gzip.compress(b"")
     assert list(iter_ndjson(empty)) == []
     assert list(iter_ndjson(b"")) == []
+
+
+def test_available_dates_include_minute_only_days():
+    names = [
+        "DEUR-posttrade-daily-2026-09-18.json.gz",
+        "DEUR-posttrade-2026-09-18T20_00.json.gz",
+        "DEUR-posttrade-2026-09-17T21_00.json.gz",
+    ]
+    assert available_dates_from_listing(names) == ["2026-09-17", "2026-09-18"]

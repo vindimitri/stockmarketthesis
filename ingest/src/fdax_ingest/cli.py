@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     p_day.add_argument("--date", required=True, help="YYYY-MM-DD der daily-Datei")
     p_day.add_argument("--dry-run", action="store_true")
 
-    p_all = sub.add_parser("ingest-available", help="Alle daily-Dateien der Boerse nachladen")
+    p_all = sub.add_parser("ingest-available", help="Alle Tage aus Daily- und Minutendateien nachladen")
     p_all.add_argument("--dry-run", action="store_true")
 
     sub.add_parser("follow", help="Neue Minutenfiles dauerhaft nachladen")

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -241,10 +241,25 @@ def daily_dates_from_listing(filenames: list[str]) -> list[str]:
     return sorted(day for day in dates if day)
 
 
+def available_dates_from_listing(filenames: list[str]) -> list[str]:
+    dates: set[str] = set()
+    for name in filenames:
+        daily = parse_daily_date(name)
+        if daily:
+            dates.add(daily)
+            continue
+        ts = parse_minute_filename(name)
+        if ts is not None:
+            dates.add(ts.date().isoformat())
+    return sorted(dates)
+
+
 def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
     with MfsClient(settings.mfs_base_url, settings.source_prefix, settings.user_agent) as client:
         listing = client.list_files()
-        wanted = daily_dates_from_listing(listing.get("CurrentFiles") or [])
+        names = listing.get("CurrentFiles") or []
+    wanted = available_dates_from_listing(names)
+    dailies = set(daily_dates_from_listing(names))
     already: set[str] = set()
     try:
         with TradeStore(settings.database_url) as store:
@@ -256,14 +271,24 @@ def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
     loaded: list[dict] = []
     skipped = [day for day in wanted if day in already]
     errors: list[dict] = []
+    tz = ZoneInfo(settings.tz)
     for day in wanted:
         if day in already:
             continue
         try:
-            result = ingest_daily(settings, day, dry_run=dry_run)
+            if day in dailies:
+                result = ingest_daily(settings, day, dry_run=dry_run)
+                source = "daily"
+            else:
+                nxt = (date.fromisoformat(day) + timedelta(days=1)).isoformat()
+                start = datetime.fromisoformat(f"{day}T00:00").replace(tzinfo=tz)
+                end = datetime.fromisoformat(f"{nxt}T00:00").replace(tzinfo=tz)
+                result = ingest_range(settings, start, end, dry_run=dry_run)
+                source = "minutes"
             loaded.append(
                 {
                     "date": day,
+                    "source": source,
                     "records_kept": result.records_kept,
                     "records_upserted": result.records_upserted,
                 }
@@ -315,6 +340,7 @@ def probe(settings: Settings, limit: int = 8) -> dict:
             "file_count": listing.get("FileCount"),
             "days_on_page": listing.get("DaysToKeepOnWebpage"),
             "daily_files": dailies,
+            "available_dates": available_dates_from_listing(files),
             "minute_files_preview": minutes[:limit],
             "sample": sample_meta,
         }
