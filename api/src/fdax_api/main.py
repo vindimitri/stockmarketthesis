@@ -61,6 +61,7 @@ def health(conn: Connection = Depends(get_conn)) -> HealthResponse:
             timezone=settings.tz,
             tape_delay_seconds=settings.tape_delay_seconds,
             last_ingest=last,
+            ingest_active=queries.ingest_active(conn),
         )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"database down: {exc}") from exc

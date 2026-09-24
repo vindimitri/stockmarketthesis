@@ -38,6 +38,12 @@ CREATE TABLE ingested_files (
     records_upserted  integer NOT NULL DEFAULT 0
 );
 
+CREATE TABLE ingest_heartbeat (
+    id      integer PRIMARY KEY CHECK (id = 1),
+    beat_at timestamptz NOT NULL DEFAULT now(),
+    mode    text NOT NULL DEFAULT 'follow'
+);
+
 CREATE VIEW days AS
 SELECT
     (event_time AT TIME ZONE 'Europe/Berlin')::date AS berlin_date,

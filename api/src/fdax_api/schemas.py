@@ -28,6 +28,7 @@ class HealthResponse(BaseModel):
     timezone: str
     tape_delay_seconds: int = 900
     last_ingest: IngestRunSummary | None = None
+    ingest_active: bool = False
 
 
 class DayRow(BaseModel):

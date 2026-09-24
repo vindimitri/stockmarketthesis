@@ -22,6 +22,7 @@ def test_health_ok(client: TestClient):
     assert body["database"] == "up"
     assert body["tape_delay_seconds"] == 900
     assert body["last_ingest"] is None or body["last_ingest"]["status"] in {"ok", "running", "error"}
+    assert body["ingest_active"] in {True, False}
 
 
 def test_days_contains_september_17(client: TestClient):

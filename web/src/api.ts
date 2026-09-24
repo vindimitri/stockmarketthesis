@@ -29,6 +29,7 @@ type TradeListResponse = {
 
 type HealthResponse = {
   tape_delay_seconds?: number;
+  ingest_active?: boolean;
 };
 
 function httpError(path: string, status: number, body: string): Error {

@@ -1,10 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { playAchAfterArrive } from "./achSound";
+import { bufferAch } from "./achSound";
 import App from "./App";
 import "./index.css";
 
-playAchAfterArrive();
+void bufferAch();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

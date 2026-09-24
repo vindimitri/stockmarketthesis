@@ -1,12 +1,3 @@
-export function StatChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="desk-stat">
-      <span className="desk-stat-label">{label}</span>
-      <span className="desk-stat-value">{value}</span>
-    </div>
-  );
-}
-
 export function WindowButton({
   active,
   onClick,

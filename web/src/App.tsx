@@ -5,7 +5,8 @@ import { useDeskData } from "./hooks/useDeskData";
 import { useDeskView } from "./hooks/useDeskView";
 
 export default function App() {
-  const { days, date, setDate, trades, loading, error, live, taped } = useDeskData();
+  const { days, date, setDate, trades, loading, error, live, ingestActive, taped } =
+    useDeskData();
   const view = useDeskView(date, trades, taped, live);
 
   return (
@@ -16,10 +17,6 @@ export default function App() {
         days={days}
         date={date}
         onDate={setDate}
-        contract={view.contract}
-        onContract={view.setContract}
-        contracts={view.contracts}
-        tradeCount={trades.length}
       />
 
       {error && (
@@ -28,10 +25,10 @@ export default function App() {
         </div>
       )}
 
-      <main className="grid min-h-[28rem] flex-1 grid-cols-1 gap-px bg-desk-border p-px lg:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.85fr)]">
+      <main className="desk-workbench">
         <QuotePanel
           productName={view.productName}
-          stats={view.stats}
+          last={view.last}
           change={view.change}
           changePct={view.changePct}
           up={view.up}
@@ -42,10 +39,13 @@ export default function App() {
           hasTrades={Boolean(trades.length)}
           hasDays={Boolean(days.length)}
           points={view.points}
-          viewKey={`${date}|${view.windowFilter}|${view.contract}|${view.bucket}`}
+          viewKey={`${date}|${view.windowFilter}|${view.contract}|${view.bucket}|${view.chartMode}`}
           lastTick={view.lastTick}
+          trackLast={live && ingestActive}
           showSeconds={view.windowFilter === "1718"}
           windowFilter={view.windowFilter}
+          chartMode={view.chartMode}
+          onChartMode={view.setChartMode}
         />
         <TradesPanel
           count={view.tradeCount}

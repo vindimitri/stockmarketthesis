@@ -412,8 +412,10 @@ def follow_forever(settings: Settings) -> None:
             with MfsClient(settings.mfs_base_url, settings.source_prefix, settings.user_agent) as client:
                 with TradeStore(settings.database_url) as store:
                     store.ensure_schema()
+                    store.touch_heartbeat("follow")
                     while should_poll(datetime.now(timezone.utc)):
                         summary = follow_once(settings, store, client)
+                        store.touch_heartbeat("follow")
                         print(
                             {
                                 "event": "follow_cycle",
@@ -426,5 +428,11 @@ def follow_forever(settings: Settings) -> None:
                         time.sleep(backoff)
         except Exception as exc:
             print({"event": "follow_error", "error": str(exc)}, flush=True)
+            try:
+                with TradeStore(settings.database_url) as store:
+                    store.ensure_schema()
+                    store.touch_heartbeat("error")
+            except Exception:
+                pass
             time.sleep(backoff)
             backoff = min(120.0, max(settings.follow_poll_seconds, backoff * 2))

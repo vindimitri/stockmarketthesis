@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TradeRow } from "../api";
-import { DEFAULT_CONTRACT, PAGE_SIZE, bucketsFor, defaultBucket, type WindowFilter } from "../desk";
-import { sliceTradesByBerlinHours } from "../format";
-import { toLinePoints } from "../linePoints";
+import {
+  DEFAULT_CONTRACT,
+  PAGE_SIZE,
+  bucketsFor,
+  defaultBucket,
+  type ChartMode,
+  type WindowFilter,
+} from "../desk";
+import { berlinChartRange, sliceTradesByBerlinHours } from "../format";
+import { toLinePoints, toSessionPoints } from "../linePoints";
 import { contractLabel, groupContracts, pageSlice, summarizeTrades } from "../lib/trades";
 
 export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[], live: boolean) {
   const [page, setPage] = useState(0);
   const [bucket, setBucket] = useState(60);
   const [contract, setContract] = useState("all");
-  const [windowFilter, setWindowFilter] = useState<WindowFilter>("day");
+  const [windowFilter, setWindowFilterState] = useState<WindowFilter>("day");
+  const [chartMode, setChartMode] = useState<ChartMode>("overview");
   const defaultedForDate = useRef("");
 
   const contracts = useMemo(() => groupContracts(trades), [trades]);
@@ -24,16 +32,20 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
 
   useEffect(() => {
     setPage(0);
-  }, [windowFilter, contract, date]);
-
-  const bucketOptions = bucketsFor(windowFilter);
+  }, [contract, date]);
 
   useEffect(() => {
-    const allowed = new Set(bucketOptions.map((opt) => opt.value));
-    if (!allowed.has(bucket)) {
-      setBucket(defaultBucket(windowFilter));
-    }
-  }, [windowFilter, bucket, bucketOptions]);
+    setChartMode("overview");
+  }, [date]);
+
+  const setWindowFilter = (next: WindowFilter) => {
+    setWindowFilterState(next);
+    setBucket(defaultBucket(next));
+    setChartMode("overview");
+    setPage(0);
+  };
+
+  const bucketOptions = bucketsFor(windowFilter);
 
   const byContract = useMemo(
     () => (contract === "all" ? taped : taped.filter((t) => t.contract_date === contract)),
@@ -48,7 +60,13 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
     [byContract, windowFilter, date],
   );
 
-  const points = useMemo(() => toLinePoints(visible, bucket), [visible, bucket]);
+  const chartRange = useMemo(() => berlinChartRange(date, windowFilter), [date, windowFilter]);
+  const points = useMemo(() => {
+    if (chartMode === "overview" && chartRange) {
+      return toSessionPoints(visible, bucket, chartRange.from, chartRange.to);
+    }
+    return toLinePoints(visible, bucket);
+  }, [visible, bucket, chartMode, chartRange]);
   const lastTick = useMemo(() => {
     const trade = visible.at(-1);
     if (!trade) return null;
@@ -72,8 +90,9 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
   return {
     windowFilter,
     setWindowFilter,
+    chartMode,
+    setChartMode,
     contract,
-    setContract,
     bucket,
     setBucket,
     bucketOptions,
@@ -81,11 +100,10 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
     setPage,
     pages,
     slice,
-    contracts,
     tradeCount: visible.length,
     points,
     lastTick,
-    stats,
+    last: stats?.close ?? null,
     productName: contractLabel(contract),
     change,
     changePct,

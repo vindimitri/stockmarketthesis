@@ -1,8 +1,11 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 import psycopg
+from psycopg.errors import UndefinedTable
 
 from fdax_api.schemas import dec
+
+HEARTBEAT_MAX_AGE = timedelta(seconds=90)
 
 
 def ping(conn: psycopg.Connection) -> None:
@@ -27,6 +30,19 @@ def last_ingest(conn: psycopg.Connection) -> dict | None:
     if data.get("started_at"):
         data["started_at"] = data["started_at"].isoformat()
     return data
+
+
+def ingest_active(conn: psycopg.Connection) -> bool:
+    try:
+        row = conn.execute("SELECT beat_at FROM ingest_heartbeat WHERE id = 1").fetchone()
+    except UndefinedTable:
+        return False
+    if not row or row["beat_at"] is None:
+        return False
+    beat = row["beat_at"]
+    if beat.tzinfo is None:
+        beat = beat.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - beat <= HEARTBEAT_MAX_AGE
 
 
 def list_days(conn: psycopg.Connection) -> list[dict]:

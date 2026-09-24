@@ -8,6 +8,7 @@ export function useDeskData() {
   const [days, setDays] = useState<DayRow[]>([]);
   const [date, setDate] = useState("");
   const [tapeDelaySeconds, setTapeDelaySeconds] = useState<number | undefined>();
+  const [ingestActive, setIngestActive] = useState(false);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export function useDeskData() {
           const [healthRes, dayRows] = await Promise.all([api.health(), api.days()]);
           if (cancelled) return;
           setTapeDelaySeconds(healthRes.tape_delay_seconds);
+          setIngestActive(Boolean(healthRes.ingest_active));
           setDays(dayRows);
           const nextDate = dayRows[0]?.berlin_date || "";
           setDate((prev) => prev || nextDate);
@@ -86,6 +88,7 @@ export function useDeskData() {
           setTrades((prev) => mergeTrades(prev, delta.trades));
         }
         setTapeDelaySeconds(healthRes.tape_delay_seconds);
+        setIngestActive(Boolean(healthRes.ingest_active));
         setDays(dayRows);
       } catch {
         /* keep the last good tape */
@@ -103,6 +106,25 @@ export function useDeskData() {
     };
   }, [live, date]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const healthRes = await api.health();
+        if (cancelled) return;
+        setTapeDelaySeconds(healthRes.tape_delay_seconds);
+        setIngestActive(Boolean(healthRes.ingest_active));
+      } catch {
+        if (!cancelled) setIngestActive(false);
+      }
+    };
+    const timer = window.setInterval(pull, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   return {
     days,
     date,
@@ -111,6 +133,7 @@ export function useDeskData() {
     loading,
     error,
     live,
+    ingestActive,
     taped,
   };
 }

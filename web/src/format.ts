@@ -91,9 +91,13 @@ function berlinClockParts(unixSec: number): { hour: string; minute: string; seco
   };
 }
 
-export function berlinAxisTickLabel(unixSec: number): string {
+export function berlinAxisTickLabel(unixSec: number, hoursOnly = false): string {
   const { hour, minute, second } = berlinClockParts(unixSec);
   if (second !== "00") return "";
+  if (hoursOnly) {
+    if (minute !== "00") return "";
+    return `${hour}:00`;
+  }
   if (minute !== "00" && minute !== "30") return "";
   return `${hour}:${minute}`;
 }
@@ -136,7 +140,6 @@ function berlinWallParts(ms: number) {
   };
 }
 
-/** UTC millis for a Berlin wall-clock time on `ymd` (YYYY-MM-DD). */
 function berlinWallTimeUtcMs(ymd: string, hour: number, minute = 0, second = 0): number {
   const [year, month, day] = ymd.split("-").map(Number);
   let utc = Date.UTC(year, month - 1, day, hour, minute, second);
@@ -149,6 +152,29 @@ function berlinWallTimeUtcMs(ymd: string, hour: number, minute = 0, second = 0):
     utc += delta;
   }
   return utc;
+}
+
+/** FDAX-Session: 00:10 UTC (01:10 CET / 02:10 CEST) bis 22:00 Berlin. */
+function berlinSessionRange(ymd: string): { from: number; to: number } | null {
+  if (!ymd) return null;
+  const from = Math.floor(Date.parse(`${ymd}T00:10:00.000Z`) / 1000);
+  const to = Math.floor(berlinWallTimeUtcMs(ymd, 22, 0) / 1000);
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return null;
+  return { from, to };
+}
+
+export function berlinChartRange(
+  ymd: string,
+  window: "day" | "1718",
+): { from: number; to: number } | null {
+  if (!ymd) return null;
+  if (window === "1718") {
+    const from = Math.floor(berlinWallTimeUtcMs(ymd, 17, 0) / 1000);
+    const to = Math.floor(berlinWallTimeUtcMs(ymd, 18, 0) / 1000);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return null;
+    return { from, to };
+  }
+  return berlinSessionRange(ymd);
 }
 
 function lowerBoundByEventTime(trades: { event_time: string }[], ms: number): number {

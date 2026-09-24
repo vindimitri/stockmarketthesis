@@ -44,6 +44,15 @@ class TradeStore:
                 )
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ingest_heartbeat (
+                    id      integer PRIMARY KEY CHECK (id = 1),
+                    beat_at timestamptz NOT NULL DEFAULT now(),
+                    mode    text NOT NULL DEFAULT 'follow'
+                )
+                """
+            )
         self._conn.commit()
 
     def stored_berlin_dates(self) -> set[str]:
@@ -78,6 +87,20 @@ class TradeStore:
                     records_upserted = EXCLUDED.records_upserted
                 """,
                 (filename, sha256, records_upserted),
+            )
+        self._conn.commit()
+
+    def touch_heartbeat(self, mode: str = "follow") -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO ingest_heartbeat (id, beat_at, mode)
+                VALUES (1, now(), %s)
+                ON CONFLICT (id) DO UPDATE
+                SET beat_at = now(),
+                    mode = EXCLUDED.mode
+                """,
+                (mode,),
             )
         self._conn.commit()
 

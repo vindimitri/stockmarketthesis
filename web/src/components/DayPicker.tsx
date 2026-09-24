@@ -7,10 +7,12 @@ export function DayPicker({
   days,
   date,
   onChange,
+  compact = false,
 }: {
   days: DayRow[];
   date: string;
   onChange: (value: string) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -47,17 +49,18 @@ export function DayPicker({
   };
 
   return (
-    <div className="flex flex-col gap-1 text-desk-ink-muted">
-      <span className="desk-label">Tag</span>
+    <div className={compact ? "desk-date" : "flex flex-col gap-1 text-desk-ink-muted"}>
+      {!compact && <span className="desk-label">Tag</span>}
       <button
         type="button"
-        className="desk-input mono min-w-[11.5rem] text-left"
+        className={compact ? "desk-date-btn" : "desk-input mono min-w-[11.5rem] text-left"}
         onClick={() => setOpen(true)}
         disabled={!days.length}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {date ? formatDay(date) : "Datum wählen"}
+        <span className="desk-date-kicker">Handelstag</span>
+        <span>{date ? formatDay(date) : "Datum wählen"}</span>
       </button>
 
       {open &&
@@ -75,8 +78,10 @@ export function DayPicker({
               aria-label="Tag wählen"
               tabIndex={-1}
             >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-medium">Tag wählen</h2>
+              <div className="mb-4 flex items-center justify-between border-b border-desk-border pb-3">
+                <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight">
+                  Tag wählen
+                </h2>
                 <button type="button" className="desk-btn" onClick={() => setOpen(false)}>
                   Schließen
                 </button>
@@ -119,12 +124,8 @@ export function DayPicker({
                       disabled={!row}
                       aria-current={isSelected ? "date" : undefined}
                       onClick={() => row && pick(cell)}
-                      className={`py-2 text-sm ${
-                        isSelected
-                          ? "bg-desk-accent text-white"
-                          : row
-                            ? "text-desk-ink hover:bg-desk-muted"
-                            : "text-desk-ink-faint/40"
+                      className={`desk-cal-day ${
+                        isSelected ? "is-on" : row ? "is-ok" : "is-off"
                       }`}
                     >
                       {Number(cell.slice(8))}
