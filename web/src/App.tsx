@@ -1,16 +1,29 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { subscribeAch } from "./achSound";
 import { DeskHeader } from "./components/DeskHeader";
-import { NewsPanel } from "./components/NewsPanel";
+import { DerivativesPanel } from "./components/DerivativesPanel";
 import { QuotePanel } from "./components/QuotePanel";
 import { useDeskData } from "./hooks/useDeskData";
 import { useDeskView } from "./hooks/useDeskView";
+import { useKnockouts } from "./hooks/useKnockouts";
 
 export default function App() {
   const { days, date, setDate, trades, loading, error, live, ingestActive, taped } =
     useDeskData();
   const view = useDeskView(date, trades, taped);
+  const knockoutRows = useKnockouts(days);
   const [soundMs, setSoundMs] = useState(0);
+  const tradeMarks = useMemo(() => {
+    if (view.windowFilter !== "1718") return null;
+    const row = knockoutRows.find((item) => item.date === date);
+    if (!row) return null;
+    return {
+      buyTime: row.buyTime,
+      sellTime: row.sellTime,
+      pnl: row.pnl,
+      title: row.title,
+    };
+  }, [view.windowFilter, knockoutRows, date]);
 
   useEffect(() => {
     let until = 0;
@@ -64,8 +77,17 @@ export default function App() {
           showSeconds={view.windowFilter === "1718"}
           windowFilter={view.windowFilter}
           onWindowFilter={view.setWindowFilter}
+          tradeMarks={tradeMarks}
         />
-        <NewsPanel />
+        <DerivativesPanel
+          rows={knockoutRows}
+          date={date}
+          windowFilter={view.windowFilter}
+          onOpen={(ymd) => {
+            view.setWindowFilter("1718");
+            setDate(ymd);
+          }}
+        />
       </main>
     </div>
   );

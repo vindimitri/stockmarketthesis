@@ -63,12 +63,12 @@ export function DayPicker({
       {open &&
         createPortal(
           <div
-            className="desk-modal-scrim fixed inset-0 z-50 flex items-center justify-center px-4"
+            className="desk-modal-scrim"
             onClick={() => setOpen(false)}
           >
             <div
               ref={dialogRef}
-              className="desk-dialog w-full max-w-sm p-5"
+              className="desk-dialog"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
               aria-modal="true"

@@ -1,7 +1,7 @@
 import type { LinePoint } from "../linePoints";
 import type { BucketOption, WindowFilter } from "../desk";
 import { formatInt, formatPct, formatPrice } from "../format";
-import { PriceChart } from "../PriceChart";
+import { PriceChart, type TradeMark } from "../PriceChart";
 import { QuantityChart } from "../QuantityChart";
 import { WindowButton } from "./ui";
 
@@ -33,6 +33,7 @@ export function QuotePanel({
   showSeconds,
   windowFilter,
   onWindowFilter,
+  tradeMarks,
 }: {
   productName: string;
   last: number | null;
@@ -53,6 +54,7 @@ export function QuotePanel({
   showSeconds: boolean;
   windowFilter: WindowFilter;
   onWindowFilter: (value: WindowFilter) => void;
+  tradeMarks: TradeMark | null;
 }) {
   const empty = !hasDays
     ? "Noch keine gespeicherten Tage. Ingest muss erst Daten holen."
@@ -78,7 +80,7 @@ export function QuotePanel({
               <span>{formatPct(changePct)}</span>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="desk-quote-controls">
             <div className="desk-segment" role="group" aria-label="Zeitfenster">
               <WindowButton
                 active={windowFilter === "day"}
@@ -117,6 +119,7 @@ export function QuotePanel({
               trackLast={trackLast}
               showSeconds={showSeconds}
               locked
+              tradeMarks={tradeMarks}
             />
           ) : (
             <EmptyNote>{empty}</EmptyNote>

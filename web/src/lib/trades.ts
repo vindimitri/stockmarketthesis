@@ -16,7 +16,7 @@ const MONTH_SHORT = [
   "Dez",
 ];
 
-export type ContractRow = { date: string; n: number; volume: number };
+type ContractRow = { date: string; n: number; volume: number };
 
 export function groupContracts(trades: TradeRow[]): ContractRow[] {
   const map = new Map<string, ContractRow>();

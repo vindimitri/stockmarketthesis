@@ -13,6 +13,21 @@ export function formatInt(value: number | null | undefined): string {
   return Math.round(value).toLocaleString("de-DE");
 }
 
+export function formatEuro(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${value.toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} €`;
+}
+
+export function formatDayShort(isoDate: string): string {
+  return new Date(`${isoDate}T12:00:00`).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
 export function formatPct(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
   const sign = value > 0 ? "+" : "";
@@ -120,6 +135,10 @@ function berlinWallParts(ms: number) {
     minute: num("minute"),
     second: num("second"),
   };
+}
+
+export function berlinWallSec(ymd: string, hour: number, minute = 0, second = 0): number {
+  return Math.floor(berlinWallTimeUtcMs(ymd, hour, minute, second) / 1000);
 }
 
 function berlinWallTimeUtcMs(ymd: string, hour: number, minute = 0, second = 0): number {

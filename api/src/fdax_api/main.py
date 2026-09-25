@@ -47,6 +47,8 @@ def root() -> dict:
         "docs": "/docs",
         "health": "/health",
         "days": "/days",
+        "trades": "/trades",
+        "summary": "/summary",
     }
 
 

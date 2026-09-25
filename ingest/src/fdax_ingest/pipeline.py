@@ -33,6 +33,20 @@ def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _minute_sort_key(name: str) -> datetime:
+    return parse_minute_filename(name) or datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _with_raw(result: IngestResult, raw_paths: list[Path]) -> IngestResult:
+    return IngestResult(
+        files=result.files,
+        records_seen=result.records_seen,
+        records_kept=result.records_kept,
+        records_upserted=result.records_upserted,
+        raw_paths=raw_paths,
+    )
+
+
 def save_raw(raw_dir: Path, filename: str, payload: bytes) -> Path:
     raw_dir.mkdir(parents=True, exist_ok=True)
     path = raw_dir / filename
@@ -52,7 +66,7 @@ def minute_files_in_window(
             continue
         if start <= ts < end:
             chosen.append(name)
-    return sorted(chosen, key=lambda n: parse_minute_filename(n) or datetime.min)
+    return sorted(chosen, key=_minute_sort_key)
 
 
 def pending_minute_files(
@@ -84,7 +98,7 @@ def pending_minute_files(
         if cutoff is not None and ts < cutoff:
             continue
         pending.append(name)
-    return sorted(pending, key=lambda n: parse_minute_filename(n) or datetime.min)
+    return sorted(pending, key=_minute_sort_key)
 
 
 def _count_trades(payloads: dict[str, bytes], isin: str) -> tuple[int, int]:
@@ -190,13 +204,7 @@ def ingest_range(
                 files=payloads,
                 isin=settings.fdax_isin,
             )
-        return IngestResult(
-            files=result.files,
-            records_seen=result.records_seen,
-            records_kept=result.records_kept,
-            records_upserted=result.records_upserted,
-            raw_paths=raw_paths,
-        )
+        return _with_raw(result, raw_paths)
 
 
 def ingest_daily(settings: Settings, day: str, *, dry_run: bool = False) -> IngestResult:
@@ -227,13 +235,7 @@ def ingest_daily(settings: Settings, day: str, *, dry_run: bool = False) -> Inge
                 files={filename: payload},
                 isin=settings.fdax_isin,
             )
-        return IngestResult(
-            files=result.files,
-            records_seen=result.records_seen,
-            records_kept=result.records_kept,
-            records_upserted=result.records_upserted,
-            raw_paths=[raw_path],
-        )
+        return _with_raw(result, [raw_path])
 
 
 def daily_dates_from_listing(filenames: list[str]) -> list[str]:
@@ -310,7 +312,11 @@ def probe(settings: Settings, limit: int = 8) -> dict:
         dailies = [n for n in files if is_daily_filename(n)]
         minutes = [n for n in files if parse_minute_filename(n)]
         sample_name = next(
-            (n for n in minutes if parse_minute_filename(n) and parse_minute_filename(n).hour in range(7, 20)),
+            (
+                name
+                for name in minutes
+                if (ts := parse_minute_filename(name)) is not None and ts.hour in range(7, 20)
+            ),
             minutes[0] if minutes else None,
         )
         sample_meta = None

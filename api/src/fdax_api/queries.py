@@ -8,6 +8,10 @@ from fdax_api.schemas import dec
 HEARTBEAT_MAX_AGE = timedelta(seconds=90)
 
 
+def _iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value is not None else None
+
+
 def ping(conn: psycopg.Connection) -> None:
     conn.execute("SELECT 1")
 
@@ -25,10 +29,8 @@ def last_ingest(conn: psycopg.Connection) -> dict | None:
     if not row:
         return None
     data = dict(row)
-    if data.get("finished_at"):
-        data["finished_at"] = data["finished_at"].isoformat()
-    if data.get("started_at"):
-        data["started_at"] = data["started_at"].isoformat()
+    data["finished_at"] = _iso(data.get("finished_at"))
+    data["started_at"] = _iso(data.get("started_at"))
     return data
 
 

@@ -47,10 +47,13 @@ body {
   min-height: 100dvh;
   height: 100%;
   overflow: auto;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   background:
     radial-gradient(1100px 520px at 8% -8%, #93a8c4 0%, transparent 58%),
     radial-gradient(900px 480px at 96% 108%, #4e6480 0%, transparent 52%),
     linear-gradient(168deg, #8294ad 0%, #6d7d93 46%, #5e7189 100%);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .desk-shell::before {
@@ -184,6 +187,7 @@ body {
   font-variant-numeric: tabular-nums;
   text-align: left;
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 180ms ease, background 180ms ease;
 }
 
@@ -204,24 +208,6 @@ body {
 .desk-date-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-.desk-toolbar .desk-segment {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 48%),
-    rgb(8 24 48 / 0.45);
-  border-color: #7eb3ff;
-}
-
-.desk-toolbar .desk-segment-btn {
-  padding: 0.32rem 0.75rem;
-  font-size: 0.75rem;
-  color: #d7e8ff;
-}
-
-.desk-toolbar .desk-segment-btn:hover:not(.desk-segment-btn-active) {
-  color: #ffffff;
-  background: rgb(255 255 255 / 0.1);
 }
 
 .desk-figure-btn {
@@ -363,12 +349,67 @@ body {
   padding: 0.55rem 1.15rem;
 }
 
+.desk-quote-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .desk-chart-slot {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   height: auto;
   background: #ffffff;
+}
+
+.desk-ko-pin {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  padding: 0.2rem 0.45rem;
+  border-radius: 2px;
+  font-family: Outfit, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.desk-ko-pin.is-buy {
+  background: #111111;
+  box-shadow: 0 2px 0 #000000;
+  transform: translate(-50%, 12px);
+}
+
+.desk-ko-pin.is-sell {
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.desk-ko-pin.is-sell.is-up {
+  background: #1a8a5c;
+  box-shadow: 0 2px 0 #0f5a3b;
+}
+
+.desk-ko-pin.is-sell.is-down {
+  background: #e11d3a;
+  box-shadow: 0 2px 0 #9a1428;
+}
+
+.desk-ko-pin.is-sell.is-flat {
+  background: #111111;
+  box-shadow: 0 2px 0 #000000;
+}
+
+.desk-ko-pin.is-buy.is-flip {
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.desk-ko-pin.is-sell.is-flip {
+  transform: translate(-50%, 12px);
 }
 
 .desk-chart-stack {
@@ -420,28 +461,6 @@ body {
 
 .desk-chart-slot a[href*="tradingview"] {
   display: none !important;
-}
-
-@media (max-width: 1023px) {
-  .desk-chart-slot {
-    min-height: 16rem;
-    height: 16rem;
-  }
-
-  .desk-qty-card.is-ready {
-    flex-basis: 10.75rem;
-  }
-
-  .desk-workbench {
-    flex-direction: column;
-  }
-
-  .desk-news-card {
-    flex: 0 0 auto;
-    width: auto;
-    min-width: 0;
-    min-height: 8rem;
-  }
 }
 
 .desk-quote-last {
@@ -522,18 +541,6 @@ body {
   background: transparent;
 }
 
-.desk-quote-chip.is-up {
-  color: #7ee2b0;
-}
-
-.desk-quote-chip.is-down {
-  color: #ff8b9a;
-}
-
-.desk-quote-chip.is-flat {
-  color: #ffffff;
-}
-
 .desk-workbench {
   display: flex;
   min-height: 28rem;
@@ -551,25 +558,26 @@ body {
   flex: 1;
 }
 
-.desk-news-card {
-  flex: 0 0 28.5rem;
-  width: 28.5rem;
-  min-width: 28.5rem;
+.desk-deriv-card {
+  flex: 0 0 31rem;
+  width: 31rem;
+  min-width: 31rem;
   min-height: 0;
   background: #f3f6fb;
 }
 
-.desk-news-head {
+.desk-deriv-head {
   flex-shrink: 0;
   min-height: 3.6rem;
-  padding: 0.55rem 1.15rem;
+  padding: 0.4rem 0.85rem;
 }
 
-.desk-news-title {
+.desk-deriv-title {
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.15;
   color: #ffffff;
   background: linear-gradient(180deg, #ffffff 18%, #c8e6ff 100%);
   -webkit-background-clip: text;
@@ -577,17 +585,146 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-.desk-news-body {
+.desk-deriv-kicker {
+  margin: 0.18rem 0 0;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9fd0ff;
+}
+
+.desk-deriv-body {
   flex: 1;
   min-height: 0;
+  overflow: auto;
   background: #f3f6fb;
 }
 
+.desk-deriv-list {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  list-style: none;
+}
+
+.desk-deriv-list > li {
+  margin: 0 0 0.45rem;
+}
+
+.desk-deriv-list > li:last-child {
+  margin-bottom: 0;
+}
+
+.desk-deriv-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.65rem 0.6rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  color: #0b1220;
+  background: #ffffff;
+  border: 1px solid #0b1f3a;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.desk-deriv-row:hover {
+  background: #f3f7ff;
+  border-color: #1e6ee6;
+}
+
+.desk-deriv-row.is-on {
+  border-color: #1e6ee6;
+  box-shadow: inset 3px 0 0 #1e6ee6;
+}
+
+.desk-deriv-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.desk-deriv-name {
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.desk-deriv-date {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #4a5568;
+}
+
+.desk-deriv-vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.desk-deriv-px {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  transition: color 160ms ease;
+}
+
+.desk-deriv-row.is-live .desk-deriv-px {
+  font-size: 1rem;
+}
+
+.desk-deriv-chg {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.desk-deriv-start {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.desk-deriv-row.is-up .desk-deriv-px,
+.desk-deriv-row.is-up .desk-deriv-chg {
+  color: #1a8a5c;
+}
+
+.desk-deriv-row.is-down .desk-deriv-px,
+.desk-deriv-row.is-down .desk-deriv-chg {
+  color: #e11d3a;
+}
+
 .desk-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, rgb(11 31 58 / 0.38), rgb(11 31 58 / 0.52));
 }
 
 .desk-dialog {
+  width: 100%;
+  max-width: 24rem;
+  padding: 1.25rem;
   border-radius: 2px;
   background: #f3f6fb;
   border: 1px solid #0b1f3a;
@@ -682,17 +819,138 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
+  .desk-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
   .desk-header {
     height: auto;
     min-height: 0;
-    padding: 0.85rem 1rem;
-    overflow: hidden;
+    padding: 0.75rem 0.9rem;
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
   }
 
   .desk-toolbar {
     height: auto;
     min-height: 0;
+    gap: 0.85rem;
+  }
+
+  .desk-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .desk-date-btn {
+    min-width: 9.5rem;
+    min-height: 2.75rem;
+  }
+
+  .desk-workbench {
+    flex-direction: column;
+    min-height: 0;
+    gap: 0.65rem;
+    padding: 0.65rem 0.65rem max(0.85rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .desk-chart-stack {
+    flex: none;
+    gap: 0.65rem;
+  }
+
+  .desk-price-card {
+    flex: none;
+  }
+
+  .desk-chart-slot {
+    height: min(52dvh, 26rem);
+    min-height: 18rem;
+  }
+
+  .desk-qty-card.is-ready {
+    flex: 0 0 10.25rem;
+  }
+
+  .desk-quote-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .desk-quote-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .desk-segment {
+    display: flex;
+    width: 100%;
+  }
+
+  .desk-segment-btn {
+    flex: 1 1 0;
+    min-height: 2.6rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.72rem;
+    touch-action: manipulation;
+  }
+
+  .desk-deriv-card {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .desk-deriv-body {
+    overflow: visible;
+  }
+
+  .desk-deriv-row {
+    min-height: 3.35rem;
+    padding: 0.7rem 0.75rem;
+    touch-action: manipulation;
+  }
+
+  .desk-deriv-row:active {
+    background: #eaf1ff;
+  }
+
+  .desk-ko-pin {
+    font-size: 10px;
+    padding: 0.16rem 0.36rem;
+  }
+}
+
+@media (max-width: 1023px) and (orientation: landscape) {
+  .desk-chart-slot {
+    height: min(58dvh, 18rem);
+    min-height: 13.5rem;
+  }
+
+  .desk-qty-card.is-ready {
+    flex-basis: 8.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .desk-header {
+    padding: 0.6rem 0.75rem;
+    padding-top: max(0.6rem, env(safe-area-inset-top, 0px));
+  }
+
+  .desk-toolbar {
+    gap: 0.65rem;
+  }
+
+  .desk-header h1 {
+    font-size: 1.1rem;
+    letter-spacing: -0.04em;
   }
 
   .desk-figure {
@@ -700,7 +958,78 @@ body {
     width: 2.35rem;
   }
 
+  .desk-date-btn {
+    min-width: 0;
+    width: auto;
+    max-width: 42vw;
+    min-height: 2.85rem;
+    padding: 0.32rem 0.65rem;
+    font-size: 0.7rem;
+  }
+
+  .desk-date-kicker {
+    font-size: 0.5rem;
+  }
+
+  .desk-workbench {
+    gap: 0.55rem;
+    padding: 0.55rem 0.55rem max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .desk-chart-slot {
+    height: min(48dvh, 22rem);
+    min-height: 16.5rem;
+  }
+
+  .desk-qty-card.is-ready {
+    flex-basis: 9.25rem;
+  }
+
   .desk-quote-price {
-    font-size: 1.3rem;
+    font-size: 1.55rem;
+  }
+
+  .desk-quote-delta {
+    font-size: 0.68rem;
+  }
+
+  .desk-qty-strip,
+  .desk-deriv-head {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .desk-deriv-list {
+    padding: 0.4rem 0.45rem;
+  }
+
+  .desk-deriv-name {
+    font-size: 0.74rem;
+  }
+
+  .desk-deriv-px {
+    font-size: 0.95rem;
+  }
+
+  .desk-modal-scrim {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .desk-dialog {
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -3px 0 #0b1f3a;
+    padding: 1.1rem 1rem max(1.15rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .desk-cal-day {
+    min-height: 2.6rem;
+    padding: 0.55rem 0;
+    font-size: 0.875rem;
+    touch-action: manipulation;
   }
 }

@@ -78,11 +78,10 @@ def quiet_reason(now: datetime) -> str:
     berlin_day = now.astimezone(BERLIN).date()
     if berlin_day.weekday() >= 5:
         return "weekend"
-    if berlin_day in eurex_closed_dates(berlin_day.year):
+    if not is_exchange_day(berlin_day):
         return "holiday"
     window = poll_window(berlin_day)
-    if window is None:
-        return "closed"
+    assert window is not None
     start, end = window
     if now < start:
         return "before_open"
