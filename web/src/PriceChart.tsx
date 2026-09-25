@@ -106,7 +106,7 @@ export function PriceChart({
       layout: {
         background: { type: ColorType.Solid, color: BG },
         textColor: MUTED,
-        fontFamily: "IBM Plex Sans, sans-serif",
+        fontFamily: "Outfit, sans-serif",
         fontSize: 12,
         attributionLogo: false,
       },

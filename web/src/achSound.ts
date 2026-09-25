@@ -6,6 +6,26 @@ let ctx: AudioContext | null = null;
 let buffer: AudioBuffer | null = null;
 let loading: Promise<void> | null = null;
 let playing = false;
+let endTimer = 0;
+
+type AchListener = (state: { playing: boolean; durationMs: number }) => void;
+const listeners = new Set<AchListener>();
+
+function emitAch(next: boolean, durationMs = 0) {
+  if (!next && endTimer) {
+    window.clearTimeout(endTimer);
+    endTimer = 0;
+  }
+  playing = next;
+  for (const listener of listeners) listener({ playing: next, durationMs });
+}
+
+export function subscribeAch(listener: AchListener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 function contextCtor(): AudioContextCtor | null {
   const fromWindow = window as Window & { webkitAudioContext?: AudioContextCtor };
@@ -48,25 +68,22 @@ export function bufferAch(): Promise<void> {
 
 export async function playAch(): Promise<void> {
   if (playing) return;
-  playing = true;
   try {
     await bufferAch();
     const audioCtx = getContext();
-    if (!audioCtx || !buffer) {
-      playing = false;
-      return;
-    }
+    if (!audioCtx || !buffer) return;
+    const durationMs = Math.max(400, Math.round(buffer.duration * 1000));
+    emitAch(true, durationMs);
+    endTimer = window.setTimeout(() => emitAch(false, durationMs), durationMs + 120);
     if (audioCtx.state === "suspended") {
       await audioCtx.resume();
     }
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(audioCtx.destination);
-    source.onended = () => {
-      playing = false;
-    };
+    source.onended = () => emitAch(false, durationMs);
     source.start(0);
   } catch {
-    playing = false;
+    emitAch(false);
   }
 }

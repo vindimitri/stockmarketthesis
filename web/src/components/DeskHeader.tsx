@@ -1,22 +1,20 @@
+import { useRef } from "react";
 import type { DayRow } from "../api";
 import { bufferAch, playAch } from "../achSound";
-import type { WindowFilter } from "../desk";
 import { DayPicker } from "./DayPicker";
-import { WindowButton } from "./ui";
 
 export function DeskHeader({
-  windowFilter,
-  onWindowFilter,
   days,
   date,
   onDate,
 }: {
-  windowFilter: WindowFilter;
-  onWindowFilter: (value: WindowFilter) => void;
   days: DayRow[];
   date: string;
   onDate: (value: string) => void;
 }) {
+  const figureRef = useRef<HTMLImageElement>(null);
+  const bouncing = useRef(false);
+
   return (
     <header className="desk-header shrink-0">
       <div className="desk-toolbar flex h-full min-h-0 min-w-0 items-center justify-between gap-x-8">
@@ -27,9 +25,31 @@ export function DeskHeader({
             aria-label="Sound abspielen"
             onPointerEnter={() => void bufferAch()}
             onFocus={() => void bufferAch()}
-            onClick={() => void playAch()}
+            onClick={() => {
+              void playAch();
+              const figure = figureRef.current;
+              if (!figure || bouncing.current) return;
+              bouncing.current = true;
+              const press = figure.animate(
+                [
+                  { transform: "scale(1)" },
+                  { transform: "scale(0.78)", offset: 0.28 },
+                  { transform: "scale(1.12)", offset: 0.68 },
+                  { transform: "scale(1)" },
+                ],
+                {
+                  duration: 340,
+                  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+                  fill: "none",
+                },
+              );
+              press.onfinish = () => {
+                bouncing.current = false;
+              };
+            }}
           >
             <img
+              ref={figureRef}
               src="/avatar.png"
               alt=""
               width={44}
@@ -39,25 +59,11 @@ export function DeskHeader({
               draggable={false}
             />
           </button>
-          <div className="flex min-w-0 flex-wrap items-center gap-3.5">
+          <div className="desk-brand">
             <h1>FDAX Delayed</h1>
-            <div className="desk-segment" role="group" aria-label="Zeitfenster">
-              <WindowButton
-                active={windowFilter === "day"}
-                onClick={() => onWindowFilter("day")}
-              >
-                Ganzer Tag
-              </WindowButton>
-              <WindowButton
-                active={windowFilter === "1718"}
-                onClick={() => onWindowFilter("1718")}
-              >
-                17–18 Uhr
-              </WindowButton>
-            </div>
           </div>
         </div>
-        <DayPicker days={days} date={date} onChange={onDate} compact />
+        <DayPicker days={days} date={date} onChange={onDate} />
       </div>
     </header>
   );

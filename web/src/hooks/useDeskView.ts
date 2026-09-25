@@ -1,23 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TradeRow } from "../api";
-import {
-  DEFAULT_CONTRACT,
-  PAGE_SIZE,
-  bucketsFor,
-  defaultBucket,
-  type ChartMode,
-  type WindowFilter,
-} from "../desk";
+import { DEFAULT_CONTRACT, bucketsFor, defaultBucket, type WindowFilter } from "../desk";
 import { berlinChartRange, sliceTradesByBerlinHours } from "../format";
-import { toLinePoints, toSessionPoints } from "../linePoints";
-import { contractLabel, groupContracts, pageSlice, summarizeTrades } from "../lib/trades";
+import { toLinePoints, toSessionPoints, toSessionVolumePoints, toVolumePoints } from "../linePoints";
+import { contractLabel, groupContracts, summarizeTrades } from "../lib/trades";
 
-export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[], live: boolean) {
-  const [page, setPage] = useState(0);
+export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[]) {
   const [bucket, setBucket] = useState(60);
   const [contract, setContract] = useState("all");
   const [windowFilter, setWindowFilterState] = useState<WindowFilter>("day");
-  const [chartMode, setChartMode] = useState<ChartMode>("overview");
   const defaultedForDate = useRef("");
 
   const contracts = useMemo(() => groupContracts(trades), [trades]);
@@ -30,19 +21,9 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
     setContract(hasDefault ? DEFAULT_CONTRACT : (contracts[0]?.date ?? "all"));
   }, [date, contracts]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [contract, date]);
-
-  useEffect(() => {
-    setChartMode("overview");
-  }, [date]);
-
   const setWindowFilter = (next: WindowFilter) => {
     setWindowFilterState(next);
     setBucket(defaultBucket(next));
-    setChartMode("overview");
-    setPage(0);
   };
 
   const bucketOptions = bucketsFor(windowFilter);
@@ -56,17 +37,27 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
     () =>
       windowFilter === "1718"
         ? sliceTradesByBerlinHours(byContract, date, 17, 18)
-        : byContract,
+        : sliceTradesByBerlinHours(byContract, date, 8, 22),
     [byContract, windowFilter, date],
   );
 
   const chartRange = useMemo(() => berlinChartRange(date, windowFilter), [date, windowFilter]);
   const points = useMemo(() => {
-    if (chartMode === "overview" && chartRange) {
+    if (chartRange) {
       return toSessionPoints(visible, bucket, chartRange.from, chartRange.to);
     }
     return toLinePoints(visible, bucket);
-  }, [visible, bucket, chartMode, chartRange]);
+  }, [visible, bucket, chartRange]);
+  const volumePoints = useMemo(() => {
+    if (chartRange) {
+      return toSessionVolumePoints(visible, bucket, chartRange.from, chartRange.to);
+    }
+    return toVolumePoints(visible, bucket);
+  }, [visible, bucket, chartRange]);
+  const volumeTotal = useMemo(
+    () => visible.reduce((sum, trade) => sum + trade.quantity, 0),
+    [visible],
+  );
   const lastTick = useMemo(() => {
     const trade = visible.at(-1);
     if (!trade) return null;
@@ -77,36 +68,23 @@ export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[],
     };
   }, [visible]);
   const stats = useMemo(() => summarizeTrades(visible), [visible]);
-  const pages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
-  const slice = pageSlice(visible, Math.min(page, pages - 1), PAGE_SIZE, live);
-
-  useEffect(() => {
-    setPage((current) => Math.min(current, pages - 1));
-  }, [pages]);
-
   const change = stats ? stats.close - stats.open : null;
   const changePct = stats && stats.open ? (change! / stats.open) * 100 : null;
 
   return {
     windowFilter,
     setWindowFilter,
-    chartMode,
-    setChartMode,
     contract,
     bucket,
     setBucket,
     bucketOptions,
-    page,
-    setPage,
-    pages,
-    slice,
-    tradeCount: visible.length,
     points,
+    volumePoints,
+    volumeTotal,
     lastTick,
     last: stats?.close ?? null,
     productName: contractLabel(contract),
     change,
     changePct,
-    up: (change ?? 0) >= 0,
   };
 }

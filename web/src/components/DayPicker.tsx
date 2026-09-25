@@ -7,12 +7,10 @@ export function DayPicker({
   days,
   date,
   onChange,
-  compact = false,
 }: {
   days: DayRow[];
   date: string;
   onChange: (value: string) => void;
-  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -49,11 +47,10 @@ export function DayPicker({
   };
 
   return (
-    <div className={compact ? "desk-date" : "flex flex-col gap-1 text-desk-ink-muted"}>
-      {!compact && <span className="desk-label">Tag</span>}
+    <div className="desk-date">
       <button
         type="button"
-        className={compact ? "desk-date-btn" : "desk-input mono min-w-[11.5rem] text-left"}
+        className="desk-date-btn"
         onClick={() => setOpen(true)}
         disabled={!days.length}
         aria-haspopup="dialog"

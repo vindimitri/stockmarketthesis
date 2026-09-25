@@ -1,8 +1,6 @@
-export const PAGE_SIZE = 80;
 export const DEFAULT_CONTRACT = "2026-12-18";
 
 export type WindowFilter = "day" | "1718";
-export type ChartMode = "overview" | "analyse";
 
 export type BucketOption = { label: string; value: number };
 

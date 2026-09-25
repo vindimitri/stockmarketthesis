@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from fdax_ingest.hours import in_desk_session
+
 
 def parse_trading_time(value: str) -> datetime:
     """Parse MiFID UTC timestamps that may carry nanoseconds."""
@@ -41,7 +43,7 @@ def keep_trade(record: dict[str, Any], isin: str) -> bool:
         return False
     if not record.get("tradingDateAndTime"):
         return False
-    return True
+    return in_desk_session(parse_trading_time(record["tradingDateAndTime"]))
 
 
 def normalize_trade(record: dict[str, Any]) -> dict[str, Any]:

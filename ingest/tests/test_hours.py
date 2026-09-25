@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from fdax_ingest.hours import (
     easter_sunday,
+    in_desk_session,
     is_exchange_day,
     next_poll_resume,
     poll_window,
@@ -36,16 +37,27 @@ def test_weekdays_and_holidays():
 
 def test_summer_session_is_cest():
     assert should_poll(_at("2026-09-18T10:00:00+02:00"))
-    assert should_poll(_at("2026-09-18T02:15:00+02:00"))
-    assert not should_poll(_at("2026-09-18T01:30:00+02:00"))
+    assert should_poll(_at("2026-09-18T08:10:00+02:00"))
+    assert should_poll(_at("2026-09-18T07:56:00+02:00"))
+    assert not should_poll(_at("2026-09-18T07:30:00+02:00"))
+    assert not should_poll(_at("2026-09-18T02:15:00+02:00"))
     assert should_poll(_at("2026-09-18T22:20:00+02:00"))
     assert not should_poll(_at("2026-09-18T23:00:00+02:00"))
 
 
 def test_winter_session_is_cet():
-    assert should_poll(_at("2026-01-07T01:15:00+01:00"))
-    assert not should_poll(_at("2026-01-07T00:30:00+01:00"))
+    assert should_poll(_at("2026-01-07T08:10:00+01:00"))
+    assert not should_poll(_at("2026-01-07T01:15:00+01:00"))
+    assert not should_poll(_at("2026-01-07T07:30:00+01:00"))
     assert should_poll(_at("2026-01-07T21:50:00+01:00"))
+
+
+def test_desk_session_is_eight_to_twenty_two_berlin():
+    assert in_desk_session(_at("2026-09-18T08:00:00+02:00"))
+    assert in_desk_session(_at("2026-09-18T21:59:00+02:00"))
+    assert not in_desk_session(_at("2026-09-18T07:59:00+02:00"))
+    assert not in_desk_session(_at("2026-09-18T22:00:00+02:00"))
+    assert not in_desk_session(_at("2026-09-19T12:00:00+02:00"))
 
 
 def test_weekend_and_holiday_quiet():
@@ -58,8 +70,9 @@ def test_resume_after_friday_close_is_monday_open():
     start, _ = poll_window(date(2026, 9, 21))
     assert start is not None
     assert resume == start
-    assert resume.astimezone(timezone.utc).hour == 0
-    assert resume.astimezone(timezone.utc).minute == 5
+    berlin = resume.astimezone(BERLIN)
+    assert berlin.hour == 7
+    assert berlin.minute == 55
 
 
 def test_fdax_trades_on_german_holidays_eurex_stays_open():

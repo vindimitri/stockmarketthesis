@@ -56,6 +56,40 @@ export function toSessionPoints(
   return out;
 }
 
+export function toSessionVolumePoints(
+  trades: TradeRow[],
+  bucketSec: number,
+  fromSec: number,
+  toSec: number,
+): LinePoint[] {
+  const step = Math.max(1, bucketSec);
+  const start = Math.floor(fromSec / step) * step;
+  const map = new Map<number, number>();
+  for (const trade of trades) {
+    const t = Math.floor(new Date(trade.event_time).getTime() / 1000);
+    if (t < fromSec || t >= toSec) continue;
+    const bucket = Math.floor(t / step) * step;
+    map.set(bucket, (map.get(bucket) ?? 0) + trade.quantity);
+  }
+  const out: LinePoint[] = [];
+  for (let t = start; t <= toSec; t += step) {
+    out.push({ time: t, value: map.get(t) ?? 0 });
+  }
+  return out;
+}
+
+export function toVolumePoints(trades: TradeRow[], bucketSec = 60): LinePoint[] {
+  const map = new Map<number, number>();
+  for (const trade of trades) {
+    const bucket =
+      Math.floor(new Date(trade.event_time).getTime() / 1000 / bucketSec) * bucketSec;
+    map.set(bucket, (map.get(bucket) ?? 0) + trade.quantity);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, value]) => ({ time, value }));
+}
+
 export function toLinePoints(trades: TradeRow[], bucketSec = 60): LinePoint[] {
   const map = new Map<number, number>();
   for (const trade of trades) {

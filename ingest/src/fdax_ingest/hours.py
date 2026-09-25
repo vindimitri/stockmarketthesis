@@ -5,11 +5,10 @@ from zoneinfo import ZoneInfo
 
 BERLIN = ZoneInfo("Europe/Berlin")
 
-# FDAX continuous trading (Eurex T7): 00:10 UTC until 22:00 Europe/Berlin.
-# Winter 01:10–22:00 CET, summer 02:10–22:00 CEST. Closed weekends and the
-# Eurex all-derivatives holidays (NYD, Good Friday, Easter Monday, 1 May,
+# Desk session is 08:00–22:00 Europe/Berlin. Closed weekends and the Eurex
+# all-derivatives holidays (NYD, Good Friday, Easter Monday, 1 May,
 # 24/25/31 Dec). Poll a few minutes early and after close for delayed files.
-OPEN_UTC = time(0, 10)
+OPEN_BERLIN = time(8, 0)
 CLOSE_BERLIN = time(22, 0)
 OPEN_LEAD = timedelta(minutes=5)
 CLOSE_TAIL = timedelta(minutes=45)
@@ -48,12 +47,19 @@ def is_exchange_day(day: date) -> bool:
     return day not in eurex_closed_dates(day.year)
 
 
+def in_desk_session(ts: datetime) -> bool:
+    local = ts.astimezone(BERLIN)
+    if not is_exchange_day(local.date()):
+        return False
+    return OPEN_BERLIN <= local.time() < CLOSE_BERLIN
+
+
 def poll_window(day: date) -> tuple[datetime, datetime] | None:
     if not is_exchange_day(day):
         return None
-    start = datetime.combine(day, OPEN_UTC, tzinfo=timezone.utc) - OPEN_LEAD
+    start = datetime.combine(day, OPEN_BERLIN, tzinfo=BERLIN) - OPEN_LEAD
     end = datetime.combine(day, CLOSE_BERLIN, tzinfo=BERLIN) + CLOSE_TAIL
-    return start, end.astimezone(timezone.utc)
+    return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
 
 
 def should_poll(now: datetime) -> bool:

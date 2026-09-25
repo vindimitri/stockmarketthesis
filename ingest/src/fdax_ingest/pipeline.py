@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as clock, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -280,9 +280,8 @@ def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
                 result = ingest_daily(settings, day, dry_run=dry_run)
                 source = "daily"
             else:
-                nxt = (date.fromisoformat(day) + timedelta(days=1)).isoformat()
-                start = datetime.fromisoformat(f"{day}T00:00").replace(tzinfo=tz)
-                end = datetime.fromisoformat(f"{nxt}T00:00").replace(tzinfo=tz)
+                start = datetime.combine(date.fromisoformat(day), clock(8, 0), tzinfo=tz)
+                end = datetime.combine(date.fromisoformat(day), clock(22, 0), tzinfo=tz)
                 result = ingest_range(settings, start, end, dry_run=dry_run)
                 source = "minutes"
             loaded.append(

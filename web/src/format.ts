@@ -22,30 +22,12 @@ export function formatPct(value: number | null | undefined): string {
   })} %`;
 }
 
-export function formatClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("de-DE", {
-    timeZone: berlin,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    fractionalSecondDigits: 3,
-  });
-}
-
 export function formatDay(isoDate: string): string {
   return new Date(`${isoDate}T12:00:00`).toLocaleDateString("de-DE", {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
-}
-
-export function formatDateShort(isoDate: string): string {
-  return new Date(`${isoDate}T12:00:00`).toLocaleDateString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
   });
 }
 
@@ -154,10 +136,10 @@ function berlinWallTimeUtcMs(ymd: string, hour: number, minute = 0, second = 0):
   return utc;
 }
 
-/** FDAX-Session: 00:10 UTC (01:10 CET / 02:10 CEST) bis 22:00 Berlin. */
+/** Desk-Session: 08:00–22:00 Berlin. */
 function berlinSessionRange(ymd: string): { from: number; to: number } | null {
   if (!ymd) return null;
-  const from = Math.floor(Date.parse(`${ymd}T00:10:00.000Z`) / 1000);
+  const from = Math.floor(berlinWallTimeUtcMs(ymd, 8, 0) / 1000);
   const to = Math.floor(berlinWallTimeUtcMs(ymd, 22, 0) / 1000);
   if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return null;
   return { from, to };
