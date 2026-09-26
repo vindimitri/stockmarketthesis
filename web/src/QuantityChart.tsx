@@ -10,6 +10,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { berlinAxisTickLabel, berlinTimeLabel, formatInt } from "./format";
+import { attachMobileFollow, chartInteractionOptions } from "./lib/chartGestures";
 import { attachTouchCrosshair } from "./lib/chartTouch";
 import type { LinePoint } from "./linePoints";
 import { isMobileUi } from "./media";
@@ -54,6 +55,7 @@ export function QuantityChart({
   lockedRef.current = locked;
   showSecondsRef.current = showSeconds;
   const [hover, setHover] = useState<Hover>(null);
+  const followApiRef = useRef<ReturnType<typeof attachMobileFollow> | null>(null);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -97,18 +99,7 @@ export function QuantityChart({
         horzLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
       },
       autoSize: false,
-      handleScale: {
-        mouseWheel: false,
-        pinch: false,
-        axisPressedMouseMove: false,
-        axisDoubleClickReset: false,
-      },
-      handleScroll: {
-        mouseWheel: false,
-        pressedMouseMove: false,
-        horzTouchDrag: false,
-        vertTouchDrag: false,
-      },
+      ...chartInteractionOptions(lockedRef.current),
     });
 
     let lastW = 0;
@@ -160,9 +151,12 @@ export function QuantityChart({
     chartRef.current = chart;
     seriesRef.current = series;
     const detachTouch = attachTouchCrosshair(host, chart, () => seriesRef.current);
+    followApiRef.current = attachMobileFollow(host, chart);
 
     return () => {
       detachTouch();
+      followApiRef.current?.detach();
+      followApiRef.current = null;
       if (raf) window.cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener("resize", frameFit);
@@ -178,26 +172,14 @@ export function QuantityChart({
     const chart = chartRef.current;
     if (!chart) return;
     const mobile = isMobileUi();
-    const allowTouch = !locked && !mobile;
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
-        rightOffset: locked ? 0 : 4,
+        rightOffset: locked && !mobile ? 0 : 4,
         shiftVisibleRangeOnNewBar: !locked,
         tickMarkFormatter: (time: Time) => axisTickLabel(time, locked && !showSeconds),
       },
-      handleScale: {
-        mouseWheel: !locked && !mobile,
-        pinch: allowTouch,
-        axisPressedMouseMove: !locked && !mobile,
-        axisDoubleClickReset: !locked && !mobile,
-      },
-      handleScroll: {
-        mouseWheel: false,
-        pressedMouseMove: !locked && !mobile,
-        horzTouchDrag: allowTouch,
-        vertTouchDrag: false,
-      },
+      ...chartInteractionOptions(locked),
     });
   }, [locked, showSeconds]);
 
@@ -208,7 +190,9 @@ export function QuantityChart({
     series.setData(seriesData(points));
     const reset = viewKeyRef.current !== viewKey;
     viewKeyRef.current = viewKey;
-    if (locked && points.length) {
+    if (reset) followApiRef.current?.reset();
+    const follow = followApiRef.current?.shouldFollow() ?? true;
+    if (locked && points.length && (reset || follow)) {
       chart.timeScale().setVisibleRange({
         from: points[0].time as UTCTimestamp,
         to: points[points.length - 1].time as UTCTimestamp,
