@@ -369,12 +369,8 @@ body {
 .desk-chart-host table,
 .desk-chart-host tr,
 .desk-chart-host td {
-  /*
-   * pan-y → browser owns vertical page scroll
-   * pinch-zoom → chart may pinch-zoom
-   * horizontal is left to JS (LWC horzTouchDrag) without blocking page scroll
-   */
-  touch-action: pan-y pinch-zoom !important;
+  /* pan-y: browser owns vertical scroll; chart stays fixed (no pan/pinch) */
+  touch-action: pan-y !important;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -1278,7 +1274,7 @@ body {
   .desk-chart-host table,
   .desk-chart-host tr,
   .desk-chart-host td {
-    touch-action: pan-y pinch-zoom !important;
+    touch-action: pan-y !important;
   }
 
   .desk-header {

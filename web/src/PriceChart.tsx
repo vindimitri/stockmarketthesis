@@ -16,7 +16,6 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { attachMobileFollow, chartInteractionOptions } from "./lib/chartGestures";
 import { attachTouchCrosshair } from "./lib/chartTouch";
 import { isMobileUi } from "./media";
 import { lineRange, type LinePoint } from "./linePoints";
@@ -282,7 +281,6 @@ export function PriceChart({
     tick();
   };
   const schedulePins = () => schedulePinsRef.current();
-  const followApiRef = useRef<ReturnType<typeof attachMobileFollow> | null>(null);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -326,7 +324,18 @@ export function PriceChart({
         horzLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
       },
       autoSize: false,
-      ...chartInteractionOptions(lockedRef.current),
+      handleScale: {
+        mouseWheel: false,
+        pinch: false,
+        axisPressedMouseMove: false,
+        axisDoubleClickReset: false,
+      },
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: false,
+        horzTouchDrag: false,
+        vertTouchDrag: false,
+      },
     });
 
     let lastW = 0;
@@ -425,12 +434,9 @@ export function PriceChart({
     const onRange = () => schedulePinsRef.current();
     chart.timeScale().subscribeVisibleTimeRangeChange(onRange);
     const detachTouch = attachTouchCrosshair(host, chart, () => seriesRef.current);
-    followApiRef.current = attachMobileFollow(host, chart);
 
     return () => {
       detachTouch();
-      followApiRef.current?.detach();
-      followApiRef.current = null;
       if (raf) window.cancelAnimationFrame(raf);
       if (pinRafRef.current) {
         window.cancelAnimationFrame(pinRafRef.current);
@@ -463,15 +469,25 @@ export function PriceChart({
   useLayoutEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    const mobile = isMobileUi();
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
-        rightOffset: locked && !mobile ? 0 : 4,
+        rightOffset: locked ? 0 : 4,
         shiftVisibleRangeOnNewBar: !locked,
         tickMarkFormatter: (time: Time) => axisTickLabel(time, locked && !showSeconds),
       },
-      ...chartInteractionOptions(locked),
+      handleScale: {
+        mouseWheel: !locked,
+        pinch: !locked,
+        axisPressedMouseMove: !locked,
+        axisDoubleClickReset: !locked,
+      },
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: !locked,
+        horzTouchDrag: !locked,
+        vertTouchDrag: false,
+      },
     });
   }, [locked, showSeconds]);
 
@@ -568,7 +584,6 @@ export function PriceChart({
       if (reset) {
         setPins([]);
         setHover(null);
-        followApiRef.current?.reset();
       }
       series.setData(data);
       if (locked) {
@@ -580,7 +595,6 @@ export function PriceChart({
         spacerRef.current?.setData([]);
       }
       applyTick(points, prev, false, null);
-      const follow = followApiRef.current?.shouldFollow() ?? true;
       if (reset) {
         if (locked && points.length) {
           chart.timeScale().setVisibleRange({
@@ -590,7 +604,7 @@ export function PriceChart({
         } else {
           chart.timeScale().fitContent();
         }
-      } else if (locked && follow && points.length) {
+      } else if (locked && points.length) {
         chart.timeScale().setVisibleRange({
           from: points[0].time as UTCTimestamp,
           to: points[points.length - 1].time as UTCTimestamp,
@@ -628,7 +642,7 @@ export function PriceChart({
             : { time: point.time as UTCTimestamp, value: point.value },
         );
       }
-      if (locked && (followApiRef.current?.shouldFollow() ?? true) && points.length) {
+      if (locked && points.length) {
         chart.timeScale().setVisibleRange({
           from: points[0].time as UTCTimestamp,
           to: points[points.length - 1].time as UTCTimestamp,

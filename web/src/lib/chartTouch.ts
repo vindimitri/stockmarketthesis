@@ -2,8 +2,9 @@ import type { IChartApi, ISeriesApi, SeriesType, Time } from "lightweight-charts
 import { isMobileUi } from "../media";
 
 /**
- * Mobile: tap-only crosshair, zero preventDefault — native scroll stays butter-smooth.
- * Desktop: no-op (mouse hover already drives the crosshair).
+ * Mobile crosshair scrub: the marker follows the finger.
+ * Vertical page scroll always wins — never preventDefault, drop the crosshair once
+ * the gesture is clearly a page scroll.
  */
 export function attachTouchCrosshair(
   host: HTMLElement,
@@ -14,8 +15,8 @@ export function attachTouchCrosshair(
 
   let startX = 0;
   let startY = 0;
-  let startT = 0;
-  let moved = false;
+  let active = false;
+  let pageScrolling = false;
 
   const place = (clientX: number, clientY: number) => {
     const series = getSeries();
@@ -23,10 +24,15 @@ export function attachTouchCrosshair(
     const rect = host.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
     const price = series.coordinateToPrice(y);
     const time = chart.timeScale().coordinateToTime(x) as Time | null;
     if (price == null || time == null) return;
     chart.setCrosshairPosition(price, time, series);
+  };
+
+  const clear = () => {
+    chart.clearCrosshairPosition();
   };
 
   const onStart = (event: TouchEvent) => {
@@ -34,32 +40,40 @@ export function attachTouchCrosshair(
     const touch = event.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
-    startT = Date.now();
-    moved = false;
-  };
-
-  const onMove = (event: TouchEvent) => {
-    if (!event.touches.length) return;
-    const touch = event.touches[0];
-    if (Math.abs(touch.clientX - startX) > 12 || Math.abs(touch.clientY - startY) > 12) {
-      moved = true;
-    }
-  };
-
-  const onEnd = (event: TouchEvent) => {
-    if (moved || event.changedTouches.length !== 1) return;
-    if (Date.now() - startT > 450) return; // long-press / cancelled scroll
-    const touch = event.changedTouches[0];
+    active = true;
+    pageScrolling = false;
     place(touch.clientX, touch.clientY);
   };
 
-  // All passive — never call preventDefault (that is what killed mobile scroll).
+  const onMove = (event: TouchEvent) => {
+    if (!active || pageScrolling || !event.touches.length) return;
+    const touch = event.touches[0];
+    const dx = Math.abs(touch.clientX - startX);
+    const dy = Math.abs(touch.clientY - startY);
+    // Vertical dominates → user is scrolling the page; yield completely.
+    if (dy > 10 && dy >= dx) {
+      pageScrolling = true;
+      clear();
+      return;
+    }
+    place(touch.clientX, touch.clientY);
+  };
+
+  const onEnd = () => {
+    active = false;
+    if (pageScrolling) clear();
+    pageScrolling = false;
+  };
+
+  // All passive — never call preventDefault (page scroll must stay native).
   host.addEventListener("touchstart", onStart, { passive: true });
   host.addEventListener("touchmove", onMove, { passive: true });
   host.addEventListener("touchend", onEnd, { passive: true });
+  host.addEventListener("touchcancel", onEnd, { passive: true });
   return () => {
     host.removeEventListener("touchstart", onStart);
     host.removeEventListener("touchmove", onMove);
     host.removeEventListener("touchend", onEnd);
+    host.removeEventListener("touchcancel", onEnd);
   };
 }
