@@ -30,7 +30,7 @@ type Entry = {
   barrier: number;
 };
 
-const START_CAPITAL = 50;
+export const START_CAPITAL = 5000;
 
 /** Signal / entry grid (:00 / :30). */
 const SIGNAL_BUCKET = 30;

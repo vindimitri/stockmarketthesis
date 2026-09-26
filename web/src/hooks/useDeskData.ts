@@ -9,7 +9,7 @@ const SESSION_FROM = "08:00";
 const SESSION_TO = "22:00";
 const LIVE_POLL_MS = 20_000;
 
-export function useDeskData() {
+export function useDeskData(scrollIdle = true) {
   const [days, setDays] = useState<DayRow[]>([]);
   const [date, setDate] = useState("");
   const [tapeDelaySeconds, setTapeDelaySeconds] = useState<number | undefined>();
@@ -19,6 +19,8 @@ export function useDeskData() {
   const [error, setError] = useState<string | null>(null);
   const tradesRef = useRef<TradeRow[]>([]);
   tradesRef.current = trades;
+  const idleRef = useRef(scrollIdle);
+  idleRef.current = scrollIdle;
 
   useEffect(() => {
     let cancelled = false;
@@ -74,13 +76,13 @@ export function useDeskData() {
 
   const live = Boolean(date) && date === berlinTodayYmd();
   const delayMs = (tapeDelaySeconds ?? DEFAULT_TAPE_DELAY_MS / 1000) * 1000;
-  const taped = useTape(trades, live, date, delayMs);
+  const taped = useTape(trades, live, date, delayMs, scrollIdle);
 
   useEffect(() => {
     if (!live || !date) return;
     let cancelled = false;
     const poll = async () => {
-      if (document.hidden) return;
+      if (document.hidden || !idleRef.current) return;
       const last = tradesRef.current.at(-1);
       try {
         const [delta, healthRes, dayRows] = await Promise.all([

@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import type { WindowFilter } from "../desk";
 import { berlinTimeLabel, formatDayShort, formatEuro, formatPct, formatPrice } from "../format";
 import type { NumberedKnockout } from "../hooks/useKnockouts";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
+import { START_CAPITAL } from "../lib/simulateKnockouts";
 import { isMobileUi } from "../media";
 
 function tickClass(pct: number | null): string {
@@ -23,7 +24,7 @@ function pctMark(pct: number | null): string {
 
 const ROW_H_DESK = 100;
 const ROW_H_MOBILE = 116;
-const VIRTUAL_MIN = 24;
+const VIRTUAL_MIN = 40;
 
 function KnockoutRowButton({
   row,
@@ -111,12 +112,33 @@ export function DerivativesPanel({
   );
   const slice = virtualize ? rows.slice(start, end) : rows;
 
+  const summary = useMemo(() => {
+    const live = (() => {
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        if (rows[i].open) return rows[i];
+      }
+      return null;
+    })();
+    const tip = live ?? (rows.length ? rows[rows.length - 1] : null);
+    const current = tip?.capitalAfter ?? START_CAPITAL;
+    const changePct = START_CAPITAL > 0 ? ((current - START_CAPITAL) / START_CAPITAL) * 100 : 0;
+    return {
+      start: START_CAPITAL,
+      current,
+      changePct,
+      live: Boolean(live),
+      // Tie footer paint to live mark so React always refreshes on tick.
+      markKey: live
+        ? `${live.buyTime}|${live.price}|${live.capitalAfter}`
+        : `${current}|${changePct}`,
+    };
+  }, [rows]);
+
   return (
     <aside className="desk-card desk-deriv-card">
       <div className="desk-pane-head desk-deriv-head">
         <div>
           <h2 className="desk-deriv-title">Knock-Out Zertifikate</h2>
-          <p className="desk-deriv-kicker">KO · Hebel 100 · Barriere</p>
         </div>
       </div>
       <div className="desk-deriv-body">
@@ -144,6 +166,24 @@ export function DerivativesPanel({
             ))}
           </ul>
         ) : null}
+      </div>
+      <div
+        className={`desk-pane-head desk-deriv-foot ${tickClass(summary.changePct)}${
+          summary.live ? " is-live" : ""
+        }`}
+        data-mark={summary.markKey}
+      >
+        <div className="desk-deriv-foot-col">
+          <span className="desk-deriv-foot-label">Startkapital</span>
+          <span className="desk-deriv-foot-val">{formatEuro(summary.start)}</span>
+        </div>
+        <div className="desk-deriv-foot-col">
+          <span className="desk-deriv-foot-label">{summary.live ? "Kapital · live" : "Kapital"}</span>
+          <span className="desk-deriv-foot-val is-current" key={summary.markKey}>
+            {formatEuro(summary.current)}{" "}
+            <span className="desk-deriv-foot-chg">({pctMark(summary.changePct)})</span>
+          </span>
+        </div>
       </div>
     </aside>
   );

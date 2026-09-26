@@ -5,17 +5,23 @@ const SRC: Record<ClipId, string> = {
   panik: "/panik.mp3",
 };
 
-type AudioContextCtor = typeof AudioContext;
-
-let ctx: AudioContext | null = null;
-const buffers: Partial<Record<ClipId, AudioBuffer>> = {};
-const loading: Partial<Record<ClipId, Promise<void>>> = {};
-let playing = false;
-let endTimer = 0;
-let activeSource: AudioBufferSourceNode | null = null;
+/** Approximate lengths used until media metadata is ready (ms). */
+const FALLBACK_MS: Record<ClipId, number> = {
+  ach: 2800,
+  panik: 17000,
+};
 
 type AchListener = (state: { playing: boolean; durationMs: number }) => void;
 const listeners = new Set<AchListener>();
+
+let playing = false;
+let endTimer = 0;
+let active: HTMLAudioElement | null = null;
+let unlocked = false;
+/** Separate element so unlock never races the audible players. */
+let gate: HTMLAudioElement | null = null;
+
+const players: Partial<Record<ClipId, HTMLAudioElement>> = {};
 
 function emitAch(next: boolean, durationMs = 0) {
   if (!next && endTimer) {
@@ -33,43 +39,71 @@ export function subscribeAch(listener: AchListener) {
   };
 }
 
-function contextCtor(): AudioContextCtor | null {
-  const fromWindow = window as Window & { webkitAudioContext?: AudioContextCtor };
-  return window.AudioContext ?? fromWindow.webkitAudioContext ?? null;
+function makeAudio(src: string): HTMLAudioElement {
+  const el = new Audio();
+  el.preload = "auto";
+  el.setAttribute("playsinline", "true");
+  el.setAttribute("webkit-playsinline", "true");
+  (el as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+  el.src = src;
+  el.load();
+  return el;
 }
 
-function getContext(): AudioContext | null {
-  if (ctx) return ctx;
-  const Ctor = contextCtor();
-  if (!Ctor) return null;
-  ctx = new Ctor();
-  return ctx;
+function getPlayer(id: ClipId): HTMLAudioElement {
+  let el = players[id];
+  if (el) return el;
+  el = makeAudio(SRC[id]);
+  players[id] = el;
+  return el;
 }
 
-function decode(audioCtx: AudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
-  if (audioCtx.decodeAudioData.length === 1) {
-    return audioCtx.decodeAudioData(data);
+function durationMsOf(el: HTMLAudioElement, id: ClipId): number {
+  const sec = el.duration;
+  if (Number.isFinite(sec) && sec > 0) return Math.max(400, Math.round(sec * 1000));
+  return FALLBACK_MS[id];
+}
+
+/**
+ * Call from pointerdown (same tap as play). Unlocks iOS/Android autoplay
+ * policies before any await breaks the user-gesture chain.
+ */
+export function unlockAudio(): void {
+  if (unlocked) return;
+  if (!gate) gate = makeAudio(SRC.ach);
+  gate.muted = true;
+  const run = gate.play();
+  if (run && typeof run.then === "function") {
+    void run
+      .then(() => {
+        gate!.pause();
+        gate!.currentTime = 0;
+        gate!.muted = false;
+        unlocked = true;
+      })
+      .catch(() => {
+        gate!.muted = false;
+      });
+  } else {
+    gate.muted = false;
+    unlocked = true;
   }
-  return new Promise((resolve, reject) => {
-    audioCtx.decodeAudioData(data, resolve, reject);
-  });
 }
 
 export function bufferClip(id: ClipId): Promise<void> {
-  if (buffers[id]) return Promise.resolve();
-  if (loading[id]) return loading[id]!;
-
-  loading[id] = (async () => {
-    const audioCtx = getContext();
-    if (!audioCtx) return;
-    const res = await fetch(SRC[id], { cache: "force-cache" });
-    if (!res.ok) throw new Error(`Sound ${id}: ${res.status}`);
-    buffers[id] = await decode(audioCtx, await res.arrayBuffer());
-  })().catch(() => {
-    delete loading[id];
+  const el = getPlayer(id);
+  if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      el.removeEventListener("canplaythrough", done);
+      el.removeEventListener("loadeddata", done);
+      resolve();
+    };
+    el.addEventListener("canplaythrough", done, { once: true });
+    el.addEventListener("loadeddata", done, { once: true });
+    el.load();
+    window.setTimeout(done, 2500);
   });
-
-  return loading[id]!;
 }
 
 export function bufferAch(): Promise<void> {
@@ -80,29 +114,61 @@ export function bufferPanik(): Promise<void> {
   return bufferClip("panik");
 }
 
-async function playClip(id: ClipId): Promise<void> {
-  if (playing) return;
-  try {
-    await bufferClip(id);
-    const audioCtx = getContext();
-    const clip = buffers[id];
-    if (!audioCtx || !clip) return;
-    const durationMs = Math.max(400, Math.round(clip.duration * 1000));
-    emitAch(true, durationMs);
-    endTimer = window.setTimeout(() => emitAch(false, durationMs), durationMs + 120);
-    if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
+function stopActive(opts?: { quiet?: boolean }) {
+  if (active) {
+    active.onended = null;
+    active.onpause = null;
+    try {
+      active.pause();
+      active.currentTime = 0;
+    } catch {
+      /* ignore */
     }
-    const source = audioCtx.createBufferSource();
-    activeSource = source;
-    source.buffer = clip;
-    source.connect(audioCtx.destination);
-    source.onended = () => {
-      if (activeSource === source) activeSource = null;
-      emitAch(false, durationMs);
-    };
-    source.start(0);
+    active = null;
+  }
+  if (endTimer) {
+    window.clearTimeout(endTimer);
+    endTimer = 0;
+  }
+  if (playing && !opts?.quiet) emitAch(false);
+}
+
+async function playClip(id: ClipId): Promise<void> {
+  unlockAudio();
+  stopActive({ quiet: true });
+
+  const el = getPlayer(id);
+  el.muted = false;
+  el.volume = 1;
+  try {
+    el.pause();
+    el.currentTime = 0;
   } catch {
+    /* ignore */
+  }
+
+  active = el;
+  const durationMs = durationMsOf(el, id);
+
+  const finish = () => {
+    if (active !== el) return;
+    active = null;
+    emitAch(false, durationMs);
+  };
+
+  el.onended = finish;
+  el.onpause = () => {
+    if (active !== el) return;
+    if (el.ended || el.currentTime <= 0.05) finish();
+  };
+
+  try {
+    const start = el.play();
+    emitAch(true, durationMs);
+    endTimer = window.setTimeout(finish, durationMs + 200);
+    if (start && typeof start.then === "function") await start;
+  } catch {
+    active = null;
     emitAch(false);
   }
 }

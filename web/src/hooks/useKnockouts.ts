@@ -82,12 +82,14 @@ function numberKnockouts(rows: BankedKnockout<KnockoutRow>[]): NumberedKnockout[
   });
 }
 
-export function useKnockouts(days: DayRow[]) {
+export function useKnockouts(days: DayRow[], scrollIdle = true) {
   const [rows, setRows] = useState<KnockoutRow[]>([]);
   const [todayTrades, setTodayTrades] = useState<TradeRow[]>([]);
   const dayKey = useMemo(() => days.map((day) => day.berlin_date).join("|"), [days]);
   const today = berlinTodayYmd();
   const genRef = useRef(0);
+  const idleRef = useRef(scrollIdle);
+  idleRef.current = scrollIdle;
 
   useEffect(() => {
     if (!dayKey) {
@@ -124,7 +126,7 @@ export function useKnockouts(days: DayRow[]) {
   useEffect(() => {
     let cancelled = false;
     const pull = async () => {
-      if (document.hidden) return;
+      if (document.hidden || !idleRef.current) return;
       try {
         const trades = await loadWindow(today);
         if (!cancelled) setTodayTrades(trades);

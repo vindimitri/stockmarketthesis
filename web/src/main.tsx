@@ -4,6 +4,7 @@ import { bufferAch, bufferPanik } from "./achSound";
 import App from "./App";
 import "./index.css";
 
+// Warm media cache only — do not unlock AudioContext here (needs a gesture).
 void bufferAch();
 void bufferPanik();
 

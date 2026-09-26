@@ -1,6 +1,12 @@
 import { useRef } from "react";
 import type { DayRow } from "../api";
-import { bufferAch, bufferPanik, playAch, playPanik } from "../achSound";
+import {
+  bufferAch,
+  bufferPanik,
+  playAch,
+  playPanik,
+  unlockAudio,
+} from "../achSound";
 import { DayPicker } from "./DayPicker";
 
 function bounceButton(btn: HTMLButtonElement | null, lock: { current: boolean }) {
@@ -43,8 +49,10 @@ export function DeskHeader({
             type="button"
             className="desk-figure-btn"
             aria-label="ACH abspielen"
-            onPointerEnter={() => void bufferAch()}
-            onFocus={() => void bufferAch()}
+            onPointerDown={() => {
+              unlockAudio();
+              void bufferAch();
+            }}
             onClick={(event) => {
               void playAch();
               bounceButton(event.currentTarget, bouncing);
@@ -67,8 +75,10 @@ export function DeskHeader({
             type="button"
             className="desk-figure-btn"
             aria-label="Panikverkauf abspielen"
-            onPointerEnter={() => void bufferPanik()}
-            onFocus={() => void bufferPanik()}
+            onPointerDown={() => {
+              unlockAudio();
+              void bufferPanik();
+            }}
             onClick={(event) => {
               void playPanik();
               bounceButton(event.currentTarget, bouncing);

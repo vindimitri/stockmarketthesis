@@ -626,6 +626,156 @@ body {
   background: #f3f6fb;
 }
 
+.desk-deriv-foot {
+  flex-shrink: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.6rem;
+  padding: 0.55rem 0.85rem 0.65rem;
+  border-bottom: 0;
+  border-top: 1px solid #3d8cff;
+  box-shadow: none;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-deriv-foot-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.desk-deriv-foot-label {
+  font-family: var(--font-sans);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9fd0ff;
+}
+
+.desk-deriv-foot-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 18%, #c8e6ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.desk-deriv-foot-val.is-current {
+  font-size: 1.18rem;
+  transition: transform 220ms ease;
+  background: none;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.45));
+}
+
+.desk-deriv-foot-chg {
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  /* Solid fill — decimal digits stay readable next to metallic capital */
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: #ffffff;
+  filter: none;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.55);
+}
+
+.desk-deriv-foot.is-live .desk-deriv-foot-label {
+  color: #c8e6ff;
+}
+
+.desk-deriv-foot.is-live .desk-deriv-foot-val.is-current {
+  animation: desk-deriv-live-tick 0.45s ease;
+}
+
+@keyframes desk-deriv-live-tick {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Metallic capital only; % uses crisp solid tones */
+.desk-deriv-foot.is-up .desk-deriv-foot-val.is-current {
+  background-image: linear-gradient(
+    155deg,
+    #f0fff8 0%,
+    #b8f5d4 14%,
+    #5ee0a8 32%,
+    #1a8a5c 48%,
+    #0f5a3b 58%,
+    #9ff0c8 72%,
+    #e8fff4 88%,
+    #3dcea0 100%
+  );
+  background-size: 140% 140%;
+  background-position: 30% 40%;
+}
+
+.desk-deriv-foot.is-up .desk-deriv-foot-chg {
+  color: #9ff5cc;
+}
+
+.desk-deriv-foot.is-down .desk-deriv-foot-val.is-current {
+  background-image: linear-gradient(
+    155deg,
+    #fff0f2 0%,
+    #ffb3be 14%,
+    #ff6b7f 32%,
+    #e11d3a 48%,
+    #8a1020 58%,
+    #ff9aab 72%,
+    #ffe8ec 88%,
+    #ff5a72 100%
+  );
+  background-size: 140% 140%;
+  background-position: 30% 40%;
+}
+
+.desk-deriv-foot.is-down .desk-deriv-foot-chg {
+  color: #ffb0ba;
+}
+
+.desk-deriv-foot.is-flat .desk-deriv-foot-val.is-current {
+  background-image: linear-gradient(
+    155deg,
+    #ffffff 0%,
+    #e8e8e8 12%,
+    #a8a8a8 28%,
+    #4a4a4a 46%,
+    #111111 56%,
+    #6a6a6a 70%,
+    #d8d8d8 86%,
+    #2a2a2a 100%
+  );
+  background-size: 140% 140%;
+  background-position: 30% 40%;
+}
+
+.desk-deriv-foot.is-flat .desk-deriv-foot-chg {
+  color: #e8e8e8;
+}
+
 .desk-deriv-list {
   margin: 0;
   padding: 0.45rem 0.55rem;
@@ -969,14 +1119,56 @@ body {
   }
 }
 
+/* Compositor-friendly mobile variants (no background-position thrash). */
+@keyframes desk-flow-bar-mobile {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  45%,
+  55% {
+    filter: brightness(1.12);
+  }
+}
+
+@keyframes desk-flow-wash-mobile {
+  0% {
+    opacity: 0;
+    transform: translate3d(-35%, 0, 0);
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate3d(35%, 0, 0);
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(55%, 0, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .desk-shell.is-sounding .desk-header,
   .desk-shell.is-sounding .desk-pane-head,
   .desk-shell.is-sounding .desk-header::before,
   .desk-shell.is-sounding .desk-pane-head::before,
   .desk-shell.is-sounding .desk-header::after,
-  .desk-shell.is-sounding .desk-pane-head::after {
+  .desk-shell.is-sounding .desk-pane-head::after,
+  .desk-deriv-foot.is-live .desk-deriv-foot-val.is-current {
     animation: none;
+  }
+}
+
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .desk-shell.is-sounding .desk-header,
+  .desk-shell.is-sounding .desk-header::before {
+    animation: none;
+    filter: none;
   }
 }
 
@@ -992,11 +1184,68 @@ body {
     will-change: auto;
   }
 
+  /* Mobile flow: only the top header — skip every pane-head (quote/deriv foot). */
+  .desk-shell.is-sounding .desk-pane-head {
+    animation: none;
+  }
+
+  .desk-shell.is-sounding .desk-pane-head::before,
+  .desk-shell.is-sounding .desk-pane-head::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  /* Lighter wash: transform + opacity only, no blur / blend / grain. */
+  .desk-header::after,
+  .desk-pane-head::after {
+    display: none;
+  }
+
+  .desk-header::before,
+  .desk-pane-head::before {
+    filter: none;
+    mix-blend-mode: normal;
+    will-change: auto;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(90 168 255 / 0.35) 35%,
+      rgb(200 230 255 / 0.55) 50%,
+      rgb(90 168 255 / 0.35) 65%,
+      transparent 100%
+    );
+  }
+
+  .desk-shell.is-sounding .desk-header {
+    animation: desk-flow-bar-mobile var(--sound-ms, 3s) linear forwards;
+  }
+
+  .desk-shell.is-sounding .desk-header::before {
+    animation: desk-flow-wash-mobile var(--sound-ms, 3s) linear forwards;
+  }
+
   .desk-shell {
     height: auto;
     min-height: 100dvh;
     overflow-x: clip;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    /* Flat gradient — radial layers + grain thrash scroll compositing */
+    background: linear-gradient(168deg, #7d8fa8 0%, #6d7d93 48%, #5e7189 100%);
+  }
+
+  .desk-card {
+    contain: layout paint style;
+    box-shadow: 2px 2px 0 #0b1f3a;
+  }
+
+  .desk-figure {
+    will-change: auto;
+  }
+
+  .desk-figure-btn {
+    transition: none;
   }
 
   .desk-header {
@@ -1081,10 +1330,15 @@ body {
     width: auto;
     min-width: 0;
     min-height: 0;
+    max-height: min(62dvh, 34rem);
   }
 
   .desk-deriv-body {
-    overflow: visible;
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .desk-deriv-row {

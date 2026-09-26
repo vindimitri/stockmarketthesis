@@ -6,12 +6,14 @@ import { QuotePanel } from "./components/QuotePanel";
 import { useDeskData } from "./hooks/useDeskData";
 import { useDeskView } from "./hooks/useDeskView";
 import { useKnockouts } from "./hooks/useKnockouts";
+import { useScrollIdle } from "./hooks/useScrollIdle";
 
 export default function App() {
+  const scrollIdle = useScrollIdle(160);
   const { days, date, setDate, trades, loading, error, live, ingestActive, taped } =
-    useDeskData();
+    useDeskData(scrollIdle);
   const view = useDeskView(date, trades, taped);
-  const knockoutRows = useKnockouts(days);
+  const knockoutRows = useKnockouts(days, scrollIdle);
   const [soundMs, setSoundMs] = useState(0);
   const tradeMarks = useMemo(() => {
     if (view.windowFilter !== "1718") return [];

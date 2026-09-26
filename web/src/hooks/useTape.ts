@@ -11,10 +11,13 @@ export function useTape(
   enabled: boolean,
   resetKey: string,
   delayMs = DEFAULT_TAPE_DELAY_MS,
+  scrollIdle = true,
 ) {
   const tradesRef = useRef(trades);
   tradesRef.current = trades;
   const countRef = useRef(0);
+  const idleRef = useRef(scrollIdle);
+  idleRef.current = scrollIdle;
   const [revealedCount, setRevealedCount] = useState(0);
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export function useTape(
     const tickMs = isMobileUi() ? TAPE_TICK_MOBILE_MS : TAPE_TICK_DESKTOP_MS;
 
     const reveal = () => {
-      if (!alive || document.hidden) return;
+      if (!alive || document.hidden || !idleRef.current) return;
       const due = countDue(tradesRef.current, Date.now() - delayMs);
       if (due !== countRef.current) {
         countRef.current = due;
