@@ -3,13 +3,14 @@ import { api, type DayRow, type TradeRow } from "../api";
 import { berlinTodayYmd } from "../format";
 import { DEFAULT_TAPE_DELAY_MS, mergeTrades } from "../tape";
 import { useTape } from "./useTape";
+import { getScrollIdle } from "./useScrollIdle";
 
 /** Desk session window — avoids pulling overnight noise / oversized payloads. */
 const SESSION_FROM = "08:00";
 const SESSION_TO = "22:00";
 const LIVE_POLL_MS = 20_000;
 
-export function useDeskData(scrollIdle = true) {
+export function useDeskData() {
   const [days, setDays] = useState<DayRow[]>([]);
   const [date, setDate] = useState("");
   const [tapeDelaySeconds, setTapeDelaySeconds] = useState<number | undefined>();
@@ -19,8 +20,6 @@ export function useDeskData(scrollIdle = true) {
   const [error, setError] = useState<string | null>(null);
   const tradesRef = useRef<TradeRow[]>([]);
   tradesRef.current = trades;
-  const idleRef = useRef(scrollIdle);
-  idleRef.current = scrollIdle;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,13 +75,13 @@ export function useDeskData(scrollIdle = true) {
 
   const live = Boolean(date) && date === berlinTodayYmd();
   const delayMs = (tapeDelaySeconds ?? DEFAULT_TAPE_DELAY_MS / 1000) * 1000;
-  const taped = useTape(trades, live, date, delayMs, scrollIdle);
+  const taped = useTape(trades, live, date, delayMs);
 
   useEffect(() => {
     if (!live || !date) return;
     let cancelled = false;
     const poll = async () => {
-      if (document.hidden || !idleRef.current) return;
+      if (document.hidden || !getScrollIdle()) return;
       const last = tradesRef.current.at(-1);
       try {
         const [delta, healthRes, dayRows] = await Promise.all([

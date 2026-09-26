@@ -364,8 +364,13 @@ body {
   background: #ffffff;
 }
 
-.desk-chart-host {
-  touch-action: pan-y;
+.desk-chart-host,
+.desk-chart-host canvas,
+.desk-chart-host table,
+.desk-chart-host tr,
+.desk-chart-host td {
+  /* pan-y: browser owns vertical scroll; never touch-action:none on mobile charts */
+  touch-action: pan-y !important;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -1184,6 +1189,8 @@ body {
     min-height: 100dvh;
     overflow-x: clip;
     overflow-y: visible !important;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .desk-shell::before {
@@ -1245,8 +1252,13 @@ body {
   }
 
   .desk-card {
-    contain: content;
+    /* contain:content can interfere with scroll/paint on some WebKit builds */
+    contain: none;
     box-shadow: 2px 2px 0 #0b1f3a;
+  }
+
+  .desk-deriv-card {
+    overflow: visible;
   }
 
   .desk-figure {
@@ -1257,8 +1269,12 @@ body {
     transition: none;
   }
 
-  .desk-chart-host {
-    touch-action: pan-y;
+  .desk-chart-host,
+  .desk-chart-host canvas,
+  .desk-chart-host table,
+  .desk-chart-host tr,
+  .desk-chart-host td {
+    touch-action: pan-y !important;
   }
 
   .desk-header {
@@ -1343,15 +1359,19 @@ body {
     width: auto;
     min-width: 0;
     min-height: 0;
-    max-height: min(62dvh, 34rem);
+    /* Let the page scroll the list — nested max-height scroll feels broken on phones */
+    max-height: none;
   }
 
   .desk-deriv-body {
-    overflow: auto;
-    flex: 1 1 auto;
+    overflow: visible;
+    flex: none;
     min-height: 0;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+  }
+
+  .desk-deriv-foot {
+    position: sticky;
+    bottom: 0;
   }
 
   .desk-deriv-row {

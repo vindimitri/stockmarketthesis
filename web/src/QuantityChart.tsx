@@ -12,6 +12,7 @@ import {
 import { berlinAxisTickLabel, berlinTimeLabel, formatInt } from "./format";
 import { attachTouchCrosshair } from "./lib/chartTouch";
 import type { LinePoint } from "./linePoints";
+import { isMobileUi } from "./media";
 
 const BG = "#ffffff";
 const GRID = "#e4e9f2";
@@ -176,6 +177,8 @@ export function QuantityChart({
   useLayoutEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
+    const mobile = isMobileUi();
+    const allowTouch = !locked && !mobile;
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
@@ -184,16 +187,16 @@ export function QuantityChart({
         tickMarkFormatter: (time: Time) => axisTickLabel(time, locked && !showSeconds),
       },
       handleScale: {
-        mouseWheel: !locked,
-        pinch: !locked,
-        axisPressedMouseMove: !locked,
-        axisDoubleClickReset: !locked,
+        mouseWheel: !locked && !mobile,
+        pinch: allowTouch,
+        axisPressedMouseMove: !locked && !mobile,
+        axisDoubleClickReset: !locked && !mobile,
       },
       handleScroll: {
         mouseWheel: false,
-        pressedMouseMove: !locked,
-        horzTouchDrag: !locked,
-        vertTouchDrag: !locked,
+        pressedMouseMove: !locked && !mobile,
+        horzTouchDrag: allowTouch,
+        vertTouchDrag: false,
       },
     });
   }, [locked, showSeconds]);

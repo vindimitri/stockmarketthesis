@@ -469,6 +469,9 @@ export function PriceChart({
   useLayoutEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
+    const mobile = isMobileUi();
+    // Mobile: never let LWC claim touch — vertTouchDrag fights document scroll.
+    const allowTouch = !locked && !mobile;
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
@@ -477,16 +480,16 @@ export function PriceChart({
         tickMarkFormatter: (time: Time) => axisTickLabel(time, locked && !showSeconds),
       },
       handleScale: {
-        mouseWheel: !locked,
-        pinch: !locked,
-        axisPressedMouseMove: !locked,
-        axisDoubleClickReset: !locked,
+        mouseWheel: !locked && !mobile,
+        pinch: allowTouch,
+        axisPressedMouseMove: !locked && !mobile,
+        axisDoubleClickReset: !locked && !mobile,
       },
       handleScroll: {
         mouseWheel: false,
-        pressedMouseMove: !locked,
-        horzTouchDrag: !locked,
-        vertTouchDrag: !locked,
+        pressedMouseMove: !locked && !mobile,
+        horzTouchDrag: allowTouch,
+        vertTouchDrag: false,
       },
     });
   }, [locked, showSeconds]);

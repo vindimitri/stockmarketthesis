@@ -1,33 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-/** False while the user is actively scrolling; true again shortly after they stop. */
-export function useScrollIdle(settleMs = 160): boolean {
-  const [idle, setIdle] = useState(true);
+/**
+ * Scroll-idle flag without React state.
+ * Mid-scroll setState → full App/chart re-render is what made mobile scroll feel broken.
+ */
+let scrollIdle = true;
+let settleTimer = 0;
 
+export function getScrollIdle(): boolean {
+  return scrollIdle;
+}
+
+/** Wire once from App — updates a module flag only, never re-renders. */
+export function useScrollIdleBridge(settleMs = 160): void {
   useEffect(() => {
-    let timer = 0;
-    let scrolling = false;
     const onScroll = () => {
-      if (!scrolling) {
-        scrolling = true;
-        setIdle(false);
-      }
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        scrolling = false;
-        setIdle(true);
+      scrollIdle = false;
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        scrollIdle = true;
       }, settleMs);
     };
-    // Scroll only — never touchmove (that fights native scrolling / causes jank).
     window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     const shell = document.querySelector(".desk-shell");
     shell?.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(settleTimer);
       window.removeEventListener("scroll", onScroll, true);
       shell?.removeEventListener("scroll", onScroll);
+      scrollIdle = true;
     };
   }, [settleMs]);
-
-  return idle;
 }

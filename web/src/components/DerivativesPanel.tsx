@@ -104,7 +104,8 @@ export function DerivativesPanel({
 }) {
   const listRef = useRef<HTMLUListElement | null>(null);
   const rowH = isMobileUi() ? ROW_H_MOBILE : ROW_H_DESK;
-  const virtualize = rows.length >= VIRTUAL_MIN;
+  // Virtualization re-renders mid-scroll — skip on phones for native smoothness.
+  const virtualize = !isMobileUi() && rows.length >= VIRTUAL_MIN;
   const { start, end, offsetTop, totalHeight } = useVirtualWindow(
     virtualize ? rows.length : 0,
     rowH,
