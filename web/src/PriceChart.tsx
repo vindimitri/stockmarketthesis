@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import {
   AreaSeries,
   ColorType,
+  CrosshairMode,
   LineSeries,
   LineStyle,
   LineType,
@@ -15,6 +16,8 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
+import { attachTouchCrosshair } from "./lib/chartTouch";
+import { isMobileUi } from "./media";
 import { lineRange, type LinePoint } from "./linePoints";
 import { berlinAxisTickLabel, berlinTimeLabel, formatPrice } from "./format";
 
@@ -32,13 +35,14 @@ const MARK_LAST = "#ff7a18";
 const MARK_FLAT = "#111111";
 const TICK_FLASH_MS = 280;
 
-function sellTone(pnl: number | null): "up" | "down" | "flat" {
-  if (pnl == null || pnl === 0) return "flat";
-  return pnl > 0 ? "up" : "down";
+function sellTone(changePct: number | null): "up" | "down" | "flat" {
+  // Same as KO list: displayed ±0,00 % → black
+  if (changePct == null || Math.abs(changePct) < 0.005) return "flat";
+  return changePct > 0 ? "up" : "down";
 }
 
-function sellColor(pnl: number | null): string {
-  const tone = sellTone(pnl);
+function sellColor(changePct: number | null): string {
+  const tone = sellTone(changePct);
   if (tone === "up") return TICK_UP;
   if (tone === "down") return TICK_DOWN;
   return MARK_FLAT;
@@ -55,7 +59,7 @@ type TickPrint = {
 export type TradeMark = {
   buyTime: number;
   sellTime: number | null;
-  pnl: number | null;
+  changePct: number | null;
   title: string;
 };
 
@@ -66,7 +70,7 @@ type Props = {
   trackLast?: boolean;
   showSeconds?: boolean;
   locked?: boolean;
-  tradeMarks?: TradeMark | null;
+  tradeMarks?: TradeMark[];
 };
 
 function snapValued(points: LinePoint[], t: number): LinePoint | null {
@@ -101,29 +105,30 @@ type TradePin = {
   flip: boolean;
 };
 
-function tradeMarkSeries(points: LinePoint[], marks: TradeMark | null): SeriesMarker<UTCTimestamp>[] {
-  if (!marks) return [];
+function tradeMarkSeries(points: LinePoint[], marks: TradeMark[]): SeriesMarker<UTCTimestamp>[] {
   const out: SeriesMarker<UTCTimestamp>[] = [];
-  const buy = snapValued(points, marks.buyTime);
-  if (buy && buy.value != null) {
-    out.push({
-      time: buy.time as UTCTimestamp,
-      position: "inBar",
-      shape: "circle",
-      color: MARK_FLAT,
-      size: 1.35,
-    });
-  }
-  if (marks.sellTime != null) {
-    const sell = snapValued(points, marks.sellTime);
-    if (sell && sell.value != null) {
+  for (const mark of marks) {
+    const buy = snapValued(points, mark.buyTime);
+    if (buy && buy.value != null) {
       out.push({
-        time: sell.time as UTCTimestamp,
+        time: buy.time as UTCTimestamp,
         position: "inBar",
         shape: "circle",
-        color: sellColor(marks.pnl),
+        color: MARK_FLAT,
         size: 1.35,
       });
+    }
+    if (mark.sellTime != null) {
+      const sell = snapValued(points, mark.sellTime);
+      if (sell && sell.value != null) {
+        out.push({
+          time: sell.time as UTCTimestamp,
+          position: "inBar",
+          shape: "circle",
+          color: sellColor(mark.changePct),
+          size: 1.35,
+        });
+      }
     }
   }
   return out;
@@ -134,9 +139,9 @@ function collectPins(
   series: ISeriesApi<"Area">,
   host: HTMLDivElement,
   points: LinePoint[],
-  marks: TradeMark | null,
+  marks: TradeMark[],
 ): TradePin[] {
-  if (!marks) return [];
+  if (!marks.length) return [];
   const width = host.clientWidth;
   const height = host.clientHeight;
   if (width < 2 || height < 2) return [];
@@ -157,9 +162,11 @@ function collectPins(
       flip,
     });
   };
-  const tag = ` ${marks.title}`;
-  place(marks.buyTime, "buy", "flat", `Kauf${tag}`);
-  if (marks.sellTime != null) place(marks.sellTime, "sell", sellTone(marks.pnl), `Verkauf${tag}`);
+  for (const mark of marks) {
+    const tag = ` ${mark.title}`;
+    place(mark.buyTime, "buy", "flat", `Kauf${tag}`);
+    if (mark.sellTime != null) place(mark.sellTime, "sell", sellTone(mark.changePct), `Verkauf${tag}`);
+  }
   return pins;
 }
 
@@ -218,7 +225,7 @@ export function PriceChart({
   trackLast = false,
   showSeconds = false,
   locked = false,
-  tradeMarks = null,
+  tradeMarks = [],
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -253,7 +260,7 @@ export function PriceChart({
         const series = seriesRef.current;
         const host = hostRef.current;
         const marks = tradeMarksRef.current;
-        if (!chart || !series || !host || !marks) {
+        if (!chart || !series || !host || !marks.length) {
           pinRafRef.current = 0;
           setPins([]);
           return;
@@ -261,7 +268,8 @@ export function PriceChart({
         const next = collectPins(chart, series, host, pointsRef.current, marks);
         attempts += 1;
         // Wait until two consecutive frames agree — LWC scale settles after setData/range.
-        if ((prev && pinsEqual(prev, next)) || attempts >= 10) {
+        const maxAttempts = isMobileUi() ? 4 : 10;
+        if ((prev && pinsEqual(prev, next)) || attempts >= maxAttempts) {
           pinRafRef.current = 0;
           setPins(next);
           return;
@@ -311,7 +319,7 @@ export function PriceChart({
         priceFormatter: (price: number) => formatPrice(price),
       },
       crosshair: {
-        mode: 0,
+        mode: CrosshairMode.Magnet,
         vertLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
         horzLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
       },
@@ -425,8 +433,10 @@ export function PriceChart({
     markersRef.current = createSeriesMarkers(series, [], { autoScale: false });
     const onRange = () => schedulePinsRef.current();
     chart.timeScale().subscribeVisibleTimeRangeChange(onRange);
+    const detachTouch = attachTouchCrosshair(host, chart, () => seriesRef.current);
 
     return () => {
+      detachTouch();
       if (raf) window.cancelAnimationFrame(raf);
       if (pinRafRef.current) {
         window.cancelAnimationFrame(pinRafRef.current);
@@ -457,13 +467,8 @@ export function PriceChart({
   const prevTradeMarksRef = useRef(tradeMarks);
 
   useLayoutEffect(() => {
-    const series = seriesRef.current;
     const chart = chartRef.current;
-    if (!series || !chart) return;
-    if (prevTradeMarksRef.current !== tradeMarks) {
-      prevTradeMarksRef.current = tradeMarks;
-      setPins([]);
-    }
+    if (!chart) return;
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
@@ -484,6 +489,16 @@ export function PriceChart({
         vertTouchDrag: !locked,
       },
     });
+  }, [locked, showSeconds]);
+
+  useLayoutEffect(() => {
+    const series = seriesRef.current;
+    const chart = chartRef.current;
+    if (!series || !chart) return;
+    if (prevTradeMarksRef.current !== tradeMarks) {
+      prevTradeMarksRef.current = tradeMarks;
+      setPins([]);
+    }
     const data = seriesData(points);
     const marks = lineRange(points);
     if (marks) {
@@ -558,7 +573,7 @@ export function PriceChart({
 
     const applyMarks = () => {
       markersRef.current?.setMarkers(tradeMarkSeries(points, tradeMarks));
-      if (!tradeMarks) {
+      if (!tradeMarks.length) {
         setPins([]);
         return;
       }
@@ -645,7 +660,7 @@ export function PriceChart({
     if (tickArrived) applyTick(points, prev, true, lastTick);
     prevPointsRef.current = points;
     applyMarks();
-  }, [points, viewKey, lastTick, trackLast, locked, showSeconds, tradeMarks]);
+  }, [points, viewKey, lastTick, trackLast, locked, tradeMarks]);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
@@ -666,7 +681,7 @@ export function PriceChart({
           {pin.label}
         </div>
       ))}
-      <div ref={hostRef} className="h-full min-h-0 w-full overflow-hidden" />
+      <div ref={hostRef} className="desk-chart-host h-full min-h-0 w-full overflow-hidden" />
     </div>
   );
 }

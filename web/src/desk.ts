@@ -10,6 +10,7 @@ const DAY_BUCKETS: BucketOption[] = [
 ];
 
 const WINDOW_BUCKETS: BucketOption[] = [
+  { label: "10s", value: 10 },
   { label: "30s", value: 30 },
   { label: "1m", value: 60 },
 ];

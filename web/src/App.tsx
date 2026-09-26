@@ -14,15 +14,15 @@ export default function App() {
   const knockoutRows = useKnockouts(days);
   const [soundMs, setSoundMs] = useState(0);
   const tradeMarks = useMemo(() => {
-    if (view.windowFilter !== "1718") return null;
-    const row = knockoutRows.find((item) => item.date === date);
-    if (!row) return null;
-    return {
-      buyTime: row.buyTime,
-      sellTime: row.sellTime,
-      pnl: row.pnl,
-      title: row.title,
-    };
+    if (view.windowFilter !== "1718") return [];
+    return knockoutRows
+      .filter((item) => item.date === date)
+      .map((row) => ({
+        buyTime: row.buyTime,
+        sellTime: row.sellTime,
+        changePct: row.changePct,
+        title: row.title,
+      }));
   }, [view.windowFilter, knockoutRows, date]);
 
   useEffect(() => {

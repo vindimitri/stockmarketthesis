@@ -1,6 +1,6 @@
 import type { TradeRow } from "../api";
 import { berlinChartRange, berlinWallSec } from "../format";
-import { toSessionPoints } from "../linePoints";
+import { toSessionPoints, type LinePoint } from "../linePoints";
 
 type KnockoutSide = "long" | "short";
 
@@ -9,6 +9,8 @@ export type KnockoutFill = {
   buyTime: number;
   sellTime: number | null;
   entry: number;
+  exitSpot: number | null;
+  barrier: number;
   price: number | null;
   pnl: number | null;
   open: boolean;
@@ -21,20 +23,44 @@ export type BankedKnockout<T extends { date: string; buyTime: number; price: num
   capitalAfter: number;
 };
 
+type Entry = {
+  side: KnockoutSide;
+  buyTime: number;
+  entry: number;
+  barrier: number;
+};
+
 const START_CAPITAL = 50;
 
-const BUCKET = 30;
+/** Signal / entry grid (:00 / :30). */
+const SIGNAL_BUCKET = 30;
+/** Mark-to-market + exit grid — ignores second-level spikes. */
+export const MARK_BUCKET = 10;
 const TRIGGER = 8;
 const BASE_POINTS = 4;
 const BASE_BAND = 2;
 const LEVERAGE = 100;
 const BUY_IN = 1;
 const TARGET_PRICE = BUY_IN * 1.25;
-const STOP_PRICE = BUY_IN * 0.8;
+
+function barrierFor(side: KnockoutSide, entry: number): number {
+  return side === "long" ? entry * (1 - 1 / LEVERAGE) : entry * (1 + 1 / LEVERAGE);
+}
+
+/** Points per € so that KO ≈ BUY_IN at entry with leverage LEVERAGE. */
+function ratioFor(entry: number): number {
+  return entry / (LEVERAGE * BUY_IN);
+}
 
 function knockoutPrice(side: KnockoutSide, entry: number, spot: number): number {
-  const move = side === "long" ? (spot - entry) / entry : (entry - spot) / entry;
-  return Math.max(0, BUY_IN * (1 + LEVERAGE * move));
+  const barrier = barrierFor(side, entry);
+  const ratio = ratioFor(entry);
+  if (side === "long") {
+    if (spot <= barrier) return 0;
+    return (spot - barrier) / ratio;
+  }
+  if (spot >= barrier) return 0;
+  return (barrier - spot) / ratio;
 }
 
 function sideFor(k: number, n: number): KnockoutSide | null {
@@ -43,23 +69,23 @@ function sideFor(k: number, n: number): KnockoutSide | null {
   return null;
 }
 
-export function simulateKnockout(trades: TradeRow[], ymd: string): KnockoutFill | null {
-  if (!trades.length || !ymd) return null;
-  const range = berlinChartRange(ymd, "1718");
-  if (!range) return null;
-  const searchUntil = berlinWallSec(ymd, 17, 40);
-  const forceExit = berlinWallSec(ymd, 17, 55);
-  const grid = toSessionPoints(trades, BUCKET, range.from, range.to);
-  const start = grid.findIndex((point) => point.value != null);
-  if (start < 0) return null;
-  const n = grid[start].value;
-  if (n == null) return null;
+/** Only fully closed 10s bars — skips the still-forming bucket. */
+function markCutoff(forceExit: number, nowSec: number): number {
+  if (nowSec >= forceExit) return forceExit;
+  return Math.floor(nowSec / MARK_BUCKET) * MARK_BUCKET;
+}
 
-  let fill: { side: KnockoutSide; buyTime: number; entry: number } | null = null;
+function findEntry(
+  grid: { time: number; value?: number | null }[],
+  start: number,
+  n: number,
+  searchUntil: number,
+  afterSec: number,
+): Entry | null {
   for (let i = start + 1; i < grid.length; i += 1) {
     const point = grid[i];
     if (point.time > searchUntil) break;
-    if (point.value == null) continue;
+    if (point.time <= afterSec || point.value == null) continue;
     const side = sideFor(point.value, n);
     if (!side) continue;
     const base = grid.slice(i + 1, i + 1 + BASE_POINTS);
@@ -68,54 +94,134 @@ export function simulateKnockout(trades: TradeRow[], ymd: string): KnockoutFill 
       base.every((bar) => bar.value != null && Math.abs(bar.value - point.value!) <= BASE_BAND);
     if (!ok) continue;
     const last = base[BASE_POINTS - 1];
-    if (last.value == null) continue;
-    fill = { side, buyTime: last.time, entry: last.value };
-    break;
+    if (last.value == null || last.time <= afterSec) continue;
+    return {
+      side,
+      buyTime: last.time,
+      entry: last.value,
+      barrier: barrierFor(side, last.value),
+    };
   }
-  if (!fill) return null;
+  return null;
+}
 
+function resolveExit(
+  markGrid: LinePoint[],
+  fill: Entry,
+  forceExit: number,
+  nowSec: number,
+): KnockoutFill {
   const mark = (spot: number) => knockoutPrice(fill.side, fill.entry, spot);
-  const done = (price: number, open: boolean, sellTime: number | null): KnockoutFill => ({
+  const done = (
+    price: number,
+    open: boolean,
+    sellTime: number | null,
+    exitSpot: number | null,
+  ): KnockoutFill => ({
     ...fill,
     sellTime,
+    exitSpot,
     price,
     pnl: price - BUY_IN,
     open,
   });
+  const cutoff = markCutoff(forceExit, nowSec);
 
-  for (const trade of trades) {
-    const t = Math.floor(Date.parse(trade.event_time) / 1000);
-    if (t <= fill.buyTime || t >= forceExit) continue;
-    const price = mark(trade.price);
-    if (price >= TARGET_PRICE) return done(TARGET_PRICE, false, t);
-    if (price <= STOP_PRICE) return done(STOP_PRICE, false, t);
+  for (const point of markGrid) {
+    if (point.time <= fill.buyTime || point.time >= cutoff) continue;
+    if (point.value == null) continue;
+    const price = mark(point.value);
+    if (price >= TARGET_PRICE) return done(TARGET_PRICE, false, point.time, point.value);
+    if (price <= 0) return done(0, false, point.time, point.value);
   }
 
-  let last: TradeRow | undefined;
-  for (let i = trades.length - 1; i >= 0; i -= 1) {
-    const t = Math.floor(Date.parse(trades[i].event_time) / 1000);
-    if (t > forceExit) continue;
-    if (t <= fill.buyTime) break;
-    last = trades[i];
+  let last: LinePoint | undefined;
+  for (let i = markGrid.length - 1; i >= 0; i -= 1) {
+    const point = markGrid[i];
+    if (point.time >= cutoff || point.time <= fill.buyTime) continue;
+    if (point.value == null) continue;
+    last = point;
     break;
   }
-  if (!last) return done(BUY_IN, true, null);
-  const lastT = Math.floor(Date.parse(last.event_time) / 1000);
-  const price = mark(last.price);
-  if (Math.floor(Date.now() / 1000) >= forceExit) return done(price, false, Math.max(lastT, forceExit));
-  return done(price, true, null);
+  if (!last || last.value == null) return done(BUY_IN, true, null, null);
+  const price = mark(last.value);
+  if (price <= 0) return done(0, false, last.time, last.value);
+  if (nowSec >= forceExit) return done(price, false, Math.max(last.time, forceExit), last.value);
+  return done(price, true, null, null);
 }
 
-export function markLiveFill(fill: KnockoutFill, spot: number, nowSec: number): KnockoutFill {
+/** Last closed 10s bar spot for live KO marking. */
+export function lastClosedMarkSpot(
+  trades: TradeRow[],
+  ymd: string,
+  nowSec = Math.floor(Date.now() / 1000),
+): { spot: number; time: number } | null {
+  const range = berlinChartRange(ymd, "1718");
+  if (!range) return null;
+  const forceExit = berlinWallSec(ymd, 17, 55);
+  const cutoff = markCutoff(forceExit ?? range.to, nowSec);
+  const grid = toSessionPoints(trades, MARK_BUCKET, range.from, range.to);
+  for (let i = grid.length - 1; i >= 0; i -= 1) {
+    const point = grid[i];
+    if (point.time >= cutoff) continue;
+    if (point.value == null) continue;
+    return { spot: point.value, time: point.time };
+  }
+  return null;
+}
+
+/** Zero or more sequential KOs: next buy only after previous sell. */
+export function simulateKnockouts(trades: TradeRow[], ymd: string): KnockoutFill[] {
+  if (!trades.length || !ymd) return [];
+  const range = berlinChartRange(ymd, "1718");
+  if (!range) return [];
+  const searchUntil = berlinWallSec(ymd, 17, 40);
+  const forceExit = berlinWallSec(ymd, 17, 55);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const signalGrid = toSessionPoints(trades, SIGNAL_BUCKET, range.from, range.to);
+  const markGrid = toSessionPoints(trades, MARK_BUCKET, range.from, range.to);
+  const start = signalGrid.findIndex((point) => point.value != null);
+  if (start < 0) return [];
+  const n = signalGrid[start].value;
+  if (n == null) return [];
+
+  const fills: KnockoutFill[] = [];
+  let afterSec = 0;
+  while (true) {
+    const entry = findEntry(signalGrid, start, n, searchUntil, afterSec);
+    if (!entry) break;
+    const fill = resolveExit(markGrid, entry, forceExit, nowSec);
+    fills.push(fill);
+    if (fill.open || fill.sellTime == null) break;
+    afterSec = fill.sellTime;
+  }
+  return fills;
+}
+
+export function markLiveFill(fill: KnockoutFill, spot: number, barTime: number): KnockoutFill {
   if (!fill.open || fill.entry <= 0) return fill;
   const price = knockoutPrice(fill.side, fill.entry, spot);
   if (price >= TARGET_PRICE) {
-    return { ...fill, price: TARGET_PRICE, pnl: TARGET_PRICE - BUY_IN, open: false, sellTime: nowSec };
+    return {
+      ...fill,
+      price: TARGET_PRICE,
+      pnl: TARGET_PRICE - BUY_IN,
+      open: false,
+      sellTime: barTime,
+      exitSpot: spot,
+    };
   }
-  if (price <= STOP_PRICE) {
-    return { ...fill, price: STOP_PRICE, pnl: STOP_PRICE - BUY_IN, open: false, sellTime: nowSec };
+  if (price <= 0) {
+    return {
+      ...fill,
+      price: 0,
+      pnl: 0 - BUY_IN,
+      open: false,
+      sellTime: barTime,
+      exitSpot: spot,
+    };
   }
-  return { ...fill, price, pnl: price - BUY_IN, open: true, sellTime: null };
+  return { ...fill, price, pnl: price - BUY_IN, open: true, sellTime: null, exitSpot: null };
 }
 
 export function applyBankroll<T extends { date: string; buyTime: number; price: number | null }>(

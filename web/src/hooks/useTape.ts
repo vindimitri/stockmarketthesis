@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TradeRow } from "../api";
+import { isMobileUi } from "../media";
 import { countDue, DEFAULT_TAPE_DELAY_MS } from "../tape";
 
-const TAPE_TICK_MS = 250;
+const TAPE_TICK_DESKTOP_MS = 250;
+const TAPE_TICK_MOBILE_MS = 1_000;
 
 export function useTape(
   trades: TradeRow[],
@@ -29,6 +31,7 @@ export function useTape(
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
+    const tickMs = isMobileUi() ? TAPE_TICK_MOBILE_MS : TAPE_TICK_DESKTOP_MS;
 
     const reveal = () => {
       if (!alive || document.hidden) return;
@@ -39,7 +42,7 @@ export function useTape(
       }
     };
 
-    const timer = window.setInterval(reveal, TAPE_TICK_MS);
+    const timer = window.setInterval(reveal, tickMs);
     return () => {
       alive = false;
       window.clearInterval(timer);

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   ColorType,
+  CrosshairMode,
   HistogramSeries,
   createChart,
   type IChartApi,
@@ -9,6 +10,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { berlinAxisTickLabel, berlinTimeLabel, formatInt } from "./format";
+import { attachTouchCrosshair } from "./lib/chartTouch";
 import type { LinePoint } from "./linePoints";
 
 const BG = "#ffffff";
@@ -89,7 +91,7 @@ export function QuantityChart({
         priceFormatter: (price: number) => formatInt(price),
       },
       crosshair: {
-        mode: 0,
+        mode: CrosshairMode.Magnet,
         vertLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
         horzLine: { color: "#dcdfe5", labelBackgroundColor: "#1e6ee6" },
       },
@@ -156,8 +158,10 @@ export function QuantityChart({
 
     chartRef.current = chart;
     seriesRef.current = series;
+    const detachTouch = attachTouchCrosshair(host, chart, () => seriesRef.current);
 
     return () => {
+      detachTouch();
       if (raf) window.cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener("resize", frameFit);
@@ -170,9 +174,8 @@ export function QuantityChart({
   const viewKeyRef = useRef(viewKey);
 
   useLayoutEffect(() => {
-    const series = seriesRef.current;
     const chart = chartRef.current;
-    if (!series || !chart) return;
+    if (!chart) return;
     chart.applyOptions({
       timeScale: {
         secondsVisible: showSeconds,
@@ -193,6 +196,12 @@ export function QuantityChart({
         vertTouchDrag: !locked,
       },
     });
+  }, [locked, showSeconds]);
+
+  useLayoutEffect(() => {
+    const series = seriesRef.current;
+    const chart = chartRef.current;
+    if (!series || !chart) return;
     series.setData(seriesData(points));
     const reset = viewKeyRef.current !== viewKey;
     viewKeyRef.current = viewKey;
@@ -205,7 +214,7 @@ export function QuantityChart({
       chart.timeScale().fitContent();
       setHover(null);
     }
-  }, [points, viewKey, locked, showSeconds]);
+  }, [points, viewKey, locked]);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
@@ -217,7 +226,7 @@ export function QuantityChart({
           </span>
         </div>
       )}
-      <div ref={hostRef} className="h-full min-h-0 w-full overflow-hidden" />
+      <div ref={hostRef} className="desk-chart-host h-full min-h-0 w-full overflow-hidden" />
     </div>
   );
 }

@@ -1,7 +1,28 @@
 import { useRef } from "react";
 import type { DayRow } from "../api";
-import { bufferAch, playAch } from "../achSound";
+import { bufferAch, bufferPanik, playAch, playPanik } from "../achSound";
 import { DayPicker } from "./DayPicker";
+
+function bounceButton(btn: HTMLButtonElement | null, lock: { current: boolean }) {
+  if (!btn || lock.current) return;
+  lock.current = true;
+  const press = btn.animate(
+    [
+      { transform: "scale(1)" },
+      { transform: "scale(0.78)", offset: 0.28 },
+      { transform: "scale(1.12)", offset: 0.68 },
+      { transform: "scale(1)" },
+    ],
+    {
+      duration: 340,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      fill: "none",
+    },
+  );
+  press.onfinish = () => {
+    lock.current = false;
+  };
+}
 
 export function DeskHeader({
   days,
@@ -12,7 +33,6 @@ export function DeskHeader({
   date: string;
   onDate: (value: string) => void;
 }) {
-  const figureRef = useRef<HTMLImageElement>(null);
   const bouncing = useRef(false);
 
   return (
@@ -22,34 +42,15 @@ export function DeskHeader({
           <button
             type="button"
             className="desk-figure-btn"
-            aria-label="Sound abspielen"
+            aria-label="ACH abspielen"
             onPointerEnter={() => void bufferAch()}
             onFocus={() => void bufferAch()}
-            onClick={() => {
+            onClick={(event) => {
               void playAch();
-              const figure = figureRef.current;
-              if (!figure || bouncing.current) return;
-              bouncing.current = true;
-              const press = figure.animate(
-                [
-                  { transform: "scale(1)" },
-                  { transform: "scale(0.78)", offset: 0.28 },
-                  { transform: "scale(1.12)", offset: 0.68 },
-                  { transform: "scale(1)" },
-                ],
-                {
-                  duration: 340,
-                  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-                  fill: "none",
-                },
-              );
-              press.onfinish = () => {
-                bouncing.current = false;
-              };
+              bounceButton(event.currentTarget, bouncing);
             }}
           >
             <img
-              ref={figureRef}
               src="/avatar.png"
               alt=""
               width={44}
@@ -62,6 +63,27 @@ export function DeskHeader({
           <div className="desk-brand">
             <h1>FDAX Delayed</h1>
           </div>
+          <button
+            type="button"
+            className="desk-figure-btn"
+            aria-label="Panikverkauf abspielen"
+            onPointerEnter={() => void bufferPanik()}
+            onFocus={() => void bufferPanik()}
+            onClick={(event) => {
+              void playPanik();
+              bounceButton(event.currentTarget, bouncing);
+            }}
+          >
+            <img
+              src="/felix.png"
+              alt=""
+              width={44}
+              height={44}
+              className="desk-figure"
+              decoding="async"
+              draggable={false}
+            />
+          </button>
         </div>
         <DayPicker days={days} date={date} onChange={onDate} />
       </div>

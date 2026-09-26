@@ -4,6 +4,11 @@ import { berlinTodayYmd } from "../format";
 import { DEFAULT_TAPE_DELAY_MS, mergeTrades } from "../tape";
 import { useTape } from "./useTape";
 
+/** Desk session window — avoids pulling overnight noise / oversized payloads. */
+const SESSION_FROM = "08:00";
+const SESSION_TO = "22:00";
+const LIVE_POLL_MS = 20_000;
+
 export function useDeskData() {
   const [days, setDays] = useState<DayRow[]>([]);
   const [date, setDate] = useState("");
@@ -53,7 +58,7 @@ export function useDeskData() {
     setError(null);
     (async () => {
       try {
-        const tradeRes = await api.trades(date, "00:00", "24:00");
+        const tradeRes = await api.trades(date, SESSION_FROM, SESSION_TO);
         if (cancelled) return;
         setTrades(tradeRes.trades);
       } catch (err) {
@@ -79,7 +84,7 @@ export function useDeskData() {
       const last = tradesRef.current.at(-1);
       try {
         const [delta, healthRes, dayRows] = await Promise.all([
-          api.trades(date, "00:00", "24:00", last?.event_time, last?.id ?? 0),
+          api.trades(date, SESSION_FROM, SESSION_TO, last?.event_time, last?.id ?? 0),
           api.health(),
           api.days(),
         ]);
@@ -94,7 +99,8 @@ export function useDeskData() {
         /* keep the last good tape */
       }
     };
-    const timer = window.setInterval(poll, 20_000);
+    void poll();
+    const timer = window.setInterval(poll, LIVE_POLL_MS);
     const onVis = () => {
       if (!document.hidden) void poll();
     };
@@ -106,7 +112,9 @@ export function useDeskData() {
     };
   }, [live, date]);
 
+  // When not live, still refresh ingest/health lightly — not every 10s.
   useEffect(() => {
+    if (live) return;
     let cancelled = false;
     const pull = async () => {
       try {
@@ -118,12 +126,13 @@ export function useDeskData() {
         if (!cancelled) setIngestActive(false);
       }
     };
-    const timer = window.setInterval(pull, 10_000);
+    void pull();
+    const timer = window.setInterval(pull, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [live]);
 
   return {
     days,

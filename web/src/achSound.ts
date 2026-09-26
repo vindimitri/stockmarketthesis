@@ -1,12 +1,18 @@
-const SRC = "/ach.mp3";
+type ClipId = "ach" | "panik";
+
+const SRC: Record<ClipId, string> = {
+  ach: "/ach.mp3",
+  panik: "/panik.mp3",
+};
 
 type AudioContextCtor = typeof AudioContext;
 
 let ctx: AudioContext | null = null;
-let buffer: AudioBuffer | null = null;
-let loading: Promise<void> | null = null;
+const buffers: Partial<Record<ClipId, AudioBuffer>> = {};
+const loading: Partial<Record<ClipId, Promise<void>>> = {};
 let playing = false;
 let endTimer = 0;
+let activeSource: AudioBufferSourceNode | null = null;
 
 type AchListener = (state: { playing: boolean; durationMs: number }) => void;
 const listeners = new Set<AchListener>();
@@ -49,41 +55,62 @@ function decode(audioCtx: AudioContext, data: ArrayBuffer): Promise<AudioBuffer>
   });
 }
 
-export function bufferAch(): Promise<void> {
-  if (buffer) return Promise.resolve();
-  if (loading) return loading;
+export function bufferClip(id: ClipId): Promise<void> {
+  if (buffers[id]) return Promise.resolve();
+  if (loading[id]) return loading[id]!;
 
-  loading = (async () => {
+  loading[id] = (async () => {
     const audioCtx = getContext();
     if (!audioCtx) return;
-    const res = await fetch(SRC, { cache: "force-cache" });
-    if (!res.ok) throw new Error(`ACH-Sound: ${res.status}`);
-    buffer = await decode(audioCtx, await res.arrayBuffer());
+    const res = await fetch(SRC[id], { cache: "force-cache" });
+    if (!res.ok) throw new Error(`Sound ${id}: ${res.status}`);
+    buffers[id] = await decode(audioCtx, await res.arrayBuffer());
   })().catch(() => {
-    loading = null;
+    delete loading[id];
   });
 
-  return loading;
+  return loading[id]!;
 }
 
-export async function playAch(): Promise<void> {
+export function bufferAch(): Promise<void> {
+  return bufferClip("ach");
+}
+
+export function bufferPanik(): Promise<void> {
+  return bufferClip("panik");
+}
+
+async function playClip(id: ClipId): Promise<void> {
   if (playing) return;
   try {
-    await bufferAch();
+    await bufferClip(id);
     const audioCtx = getContext();
-    if (!audioCtx || !buffer) return;
-    const durationMs = Math.max(400, Math.round(buffer.duration * 1000));
+    const clip = buffers[id];
+    if (!audioCtx || !clip) return;
+    const durationMs = Math.max(400, Math.round(clip.duration * 1000));
     emitAch(true, durationMs);
     endTimer = window.setTimeout(() => emitAch(false, durationMs), durationMs + 120);
     if (audioCtx.state === "suspended") {
       await audioCtx.resume();
     }
     const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
+    activeSource = source;
+    source.buffer = clip;
     source.connect(audioCtx.destination);
-    source.onended = () => emitAch(false, durationMs);
+    source.onended = () => {
+      if (activeSource === source) activeSource = null;
+      emitAch(false, durationMs);
+    };
     source.start(0);
   } catch {
     emitAch(false);
   }
+}
+
+export function playAch(): Promise<void> {
+  return playClip("ach");
+}
+
+export function playPanik(): Promise<void> {
+  return playClip("panik");
 }

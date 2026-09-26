@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type DayRow, type TradeRow } from "../api";
 import { DEFAULT_CONTRACT } from "../desk";
 import { berlinTodayYmd } from "../format";
 import {
   applyBankroll,
+  lastClosedMarkSpot,
   markLiveFill,
-  simulateKnockout,
+  MARK_BUCKET,
+  simulateKnockouts,
   type BankedKnockout,
   type KnockoutFill,
 } from "../lib/simulateKnockouts";
@@ -17,6 +19,11 @@ export type NumberedKnockout = BankedKnockout<KnockoutRow> & {
   title: string;
 };
 
+/** Newest days first, then older chunks — avoids N parallel fetches on boot. */
+const KO_FIRST_BATCH = 8;
+const KO_CHUNK = 4;
+const KO_CONCURRENCY = 2;
+
 function preferContract(trades: TradeRow[]): TradeRow[] {
   const hit = trades.filter((trade) => trade.contract_date === DEFAULT_CONTRACT);
   return hit.length ? hit : trades;
@@ -27,13 +34,39 @@ async function loadWindow(ymd: string): Promise<TradeRow[]> {
   return preferContract(res.trades);
 }
 
-function fillFor(ymd: string, trades: TradeRow[]): KnockoutRow | null {
-  let fill = simulateKnockout(trades, ymd);
-  if (!fill) return null;
-  if (fill.open && trades.length) {
-    fill = markLiveFill(fill, trades[trades.length - 1].price, Math.floor(Date.now() / 1000));
+function fillsFor(ymd: string, trades: TradeRow[]): KnockoutRow[] {
+  const fills = simulateKnockouts(trades, ymd);
+  if (!fills.length) return [];
+  const closed = lastClosedMarkSpot(trades, ymd);
+  return fills.map((fill) => {
+    let next = fill;
+    if (next.open && closed) {
+      next = markLiveFill(next, closed.spot, closed.time);
+    }
+    return { ...next, date: ymd };
+  });
+}
+
+async function loadDayFills(ymd: string): Promise<KnockoutRow[]> {
+  try {
+    return fillsFor(ymd, await loadWindow(ymd));
+  } catch {
+    return [];
   }
-  return { ...fill, date: ymd };
+}
+
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      out[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return out;
 }
 
 function numberKnockouts(rows: BankedKnockout<KnockoutRow>[]): NumberedKnockout[] {
@@ -54,6 +87,7 @@ export function useKnockouts(days: DayRow[]) {
   const [todayTrades, setTodayTrades] = useState<TradeRow[]>([]);
   const dayKey = useMemo(() => days.map((day) => day.berlin_date).join("|"), [days]);
   const today = berlinTodayYmd();
+  const genRef = useRef(0);
 
   useEffect(() => {
     if (!dayKey) {
@@ -61,21 +95,27 @@ export function useKnockouts(days: DayRow[]) {
       return;
     }
     const dates = dayKey.split("|").filter((ymd) => ymd !== today);
+    const gen = ++genRef.current;
     let cancelled = false;
+
     (async () => {
-      const next = (
-        await Promise.all(
-          dates.map(async (ymd) => {
-            try {
-              return fillFor(ymd, await loadWindow(ymd));
-            } catch {
-              return null;
-            }
-          }),
-        )
-      ).filter((row): row is KnockoutRow => row != null);
-      if (!cancelled) setRows(next);
+      const first = dates.slice(0, KO_FIRST_BATCH);
+      const rest = dates.slice(KO_FIRST_BATCH);
+      const firstFills = (await mapPool(first, KO_CONCURRENCY, loadDayFills)).flat();
+      if (cancelled || gen !== genRef.current) return;
+      setRows(firstFills);
+
+      for (let i = 0; i < rest.length; i += KO_CHUNK) {
+        if (cancelled || gen !== genRef.current) return;
+        const chunk = rest.slice(i, i + KO_CHUNK);
+        const chunkFills = (await mapPool(chunk, KO_CONCURRENCY, loadDayFills)).flat();
+        if (cancelled || gen !== genRef.current) return;
+        if (chunkFills.length) {
+          setRows((prev) => [...prev, ...chunkFills]);
+        }
+      }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -93,7 +133,7 @@ export function useKnockouts(days: DayRow[]) {
       }
     };
     void pull();
-    const timer = window.setInterval(pull, 2_000);
+    const timer = window.setInterval(pull, MARK_BUCKET * 1000);
     const onVis = () => {
       if (!document.hidden) void pull();
     };
@@ -105,10 +145,10 @@ export function useKnockouts(days: DayRow[]) {
     };
   }, [today]);
 
-  const todayRow = useMemo(() => fillFor(today, todayTrades), [today, todayTrades]);
+  const todayRows = useMemo(() => fillsFor(today, todayTrades), [today, todayTrades]);
 
   return useMemo(() => {
-    const merged = todayRow ? [...rows.filter((row) => row.date !== today), todayRow] : rows;
+    const merged = [...rows.filter((row) => row.date !== today), ...todayRows];
     return numberKnockouts(applyBankroll(merged));
-  }, [rows, todayRow, today]);
+  }, [rows, todayRows, today]);
 }
