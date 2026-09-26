@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /** False while the user is actively scrolling; true again shortly after they stop. */
-export function useScrollIdle(settleMs = 140): boolean {
+export function useScrollIdle(settleMs = 160): boolean {
   const [idle, setIdle] = useState(true);
 
   useEffect(() => {
@@ -18,22 +18,14 @@ export function useScrollIdle(settleMs = 140): boolean {
         setIdle(true);
       }, settleMs);
     };
-    const opts: AddEventListenerOptions = { passive: true, capture: true };
-    window.addEventListener("scroll", onScroll, opts);
-    window.addEventListener("touchmove", onScroll, { passive: true });
+    // Scroll only — never touchmove (that fights native scrolling / causes jank).
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     const shell = document.querySelector(".desk-shell");
     shell?.addEventListener("scroll", onScroll, { passive: true });
-    document.querySelectorAll(".desk-deriv-body").forEach((node) => {
-      node.addEventListener("scroll", onScroll, { passive: true });
-    });
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("touchmove", onScroll);
       shell?.removeEventListener("scroll", onScroll);
-      document.querySelectorAll(".desk-deriv-body").forEach((node) => {
-        node.removeEventListener("scroll", onScroll);
-      });
     };
   }, [settleMs]);
 

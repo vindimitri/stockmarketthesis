@@ -365,7 +365,7 @@ body {
 }
 
 .desk-chart-host {
-  touch-action: none;
+  touch-action: pan-y;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -1173,6 +1173,19 @@ body {
 }
 
 @media (max-width: 1023px) {
+  /* Document scrolls — avoid nested height:100% + overflow traps. */
+  html,
+  body,
+  #root,
+  html.h-full,
+  body.h-full,
+  #root.h-full {
+    height: auto !important;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: visible !important;
+  }
+
   .desk-shell::before {
     display: none;
   }
@@ -1225,18 +1238,14 @@ body {
   }
 
   .desk-shell {
-    height: auto;
+    height: auto !important;
     min-height: 100dvh;
-    overflow-x: clip;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    /* Flat gradient — radial layers + grain thrash scroll compositing */
+    overflow: visible !important;
     background: linear-gradient(168deg, #7d8fa8 0%, #6d7d93 48%, #5e7189 100%);
   }
 
   .desk-card {
-    contain: layout paint style;
+    contain: content;
     box-shadow: 2px 2px 0 #0b1f3a;
   }
 
@@ -1246,6 +1255,10 @@ body {
 
   .desk-figure-btn {
     transition: none;
+  }
+
+  .desk-chart-host {
+    touch-action: pan-y;
   }
 
   .desk-header {
