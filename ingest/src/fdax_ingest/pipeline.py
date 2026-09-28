@@ -3,12 +3,12 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, time as clock, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fdax_ingest.config import Settings
-from fdax_ingest.hours import next_poll_resume, quiet_reason, should_poll
+from fdax_ingest.hours import BERLIN, is_exchange_day, next_poll_resume, poll_window, quiet_reason, should_poll
 from fdax_ingest.mfs import (
     MfsClient,
     is_daily_filename,
@@ -244,15 +244,22 @@ def daily_dates_from_listing(filenames: list[str]) -> list[str]:
 
 
 def available_dates_from_listing(filenames: list[str]) -> list[str]:
+    """Berlin exchange days present in the MFS listing (weekends/holidays excluded)."""
     dates: set[str] = set()
     for name in filenames:
         daily = parse_daily_date(name)
         if daily:
-            dates.add(daily)
+            day = date.fromisoformat(daily)
+            if is_exchange_day(day):
+                dates.add(daily)
             continue
         ts = parse_minute_filename(name)
-        if ts is not None:
-            dates.add(ts.date().isoformat())
+        if ts is None:
+            continue
+        # Filenames are UTC — map to Berlin calendar day, then keep trading days only.
+        berlin_day = ts.astimezone(BERLIN).date()
+        if is_exchange_day(berlin_day):
+            dates.add(berlin_day.isoformat())
     return sorted(dates)
 
 
@@ -261,7 +268,11 @@ def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
         listing = client.list_files()
         names = listing.get("CurrentFiles") or []
     wanted = available_dates_from_listing(names)
-    dailies = set(daily_dates_from_listing(names))
+    dailies = {
+        day
+        for day in daily_dates_from_listing(names)
+        if is_exchange_day(date.fromisoformat(day))
+    }
     already: set[str] = set()
     try:
         with TradeStore(settings.database_url) as store:
@@ -273,17 +284,23 @@ def ingest_available_days(settings: Settings, *, dry_run: bool = False) -> dict:
     loaded: list[dict] = []
     skipped = [day for day in wanted if day in already]
     errors: list[dict] = []
-    tz = ZoneInfo(settings.tz)
     for day in wanted:
         if day in already:
+            continue
+        day_date = date.fromisoformat(day)
+        if not is_exchange_day(day_date):
             continue
         try:
             if day in dailies:
                 result = ingest_daily(settings, day, dry_run=dry_run)
                 source = "daily"
             else:
-                start = datetime.combine(date.fromisoformat(day), clock(8, 0), tzinfo=tz)
-                end = datetime.combine(date.fromisoformat(day), clock(22, 0), tzinfo=tz)
+                window = poll_window(day_date)
+                if window is None:
+                    continue
+                start_utc, end_utc = window
+                start = start_utc.astimezone(ZoneInfo(settings.tz))
+                end = end_utc.astimezone(ZoneInfo(settings.tz))
                 result = ingest_range(settings, start, end, dry_run=dry_run)
                 source = "minutes"
             loaded.append(

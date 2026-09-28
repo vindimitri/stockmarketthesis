@@ -67,3 +67,14 @@ def test_available_dates_include_minute_only_days():
         "DEUR-posttrade-2026-09-17T21_00.json.gz",
     ]
     assert available_dates_from_listing(names) == ["2026-09-17", "2026-09-18"]
+
+
+def test_available_dates_skip_weekend_utc_filenames():
+    # Sunday UTC minute file + Saturday daily must not become backfill targets.
+    names = [
+        "DEUR-posttrade-daily-2026-09-27.json.gz",  # Sunday
+        "DEUR-posttrade-2026-09-27T10_00.json.gz",  # Sunday UTC / Berlin
+        "DEUR-posttrade-2026-09-26T12_00.json.gz",  # Saturday
+        "DEUR-posttrade-2026-09-25T14_00.json.gz",  # Friday
+    ]
+    assert available_dates_from_listing(names) == ["2026-09-25"]
