@@ -5,9 +5,21 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+*.egg-info/
+
+# Runtime data (local only)
 data/postgres/
 data/raw/
-*.egg-info/
+data/dumps/*.sql
+
+# Frontend build
 dist/
 build/
 node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

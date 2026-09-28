@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { DayRow } from "../api";
-import { berlinTodayYmd, formatDay, formatMonthTitle, parseYmd } from "../format";
+import type { DayRow } from "../lib/api";
+import { berlinTodayYmd, formatDay, formatMonthTitle, parseYmd } from "../lib/format";
 
 export function DayPicker({
   days,

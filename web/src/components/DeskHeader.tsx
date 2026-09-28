@@ -1,12 +1,12 @@
 import { useRef } from "react";
-import type { DayRow } from "../api";
+import type { DayRow } from "../lib/api";
 import {
   bufferAch,
   bufferPanik,
   playAch,
   playPanik,
   unlockAudio,
-} from "../achSound";
+} from "../lib/achSound";
 import { DayPicker } from "./DayPicker";
 
 function bounceButton(btn: HTMLButtonElement | null, lock: { current: boolean }) {
@@ -34,10 +34,15 @@ export function DeskHeader({
   days,
   date,
   onDate,
+  onToday,
+  todayActive = false,
 }: {
   days: DayRow[];
   date: string;
   onDate: (value: string) => void;
+  onToday: () => void;
+  /** True when already on today's full-day chart — button is a no-op. */
+  todayActive?: boolean;
 }) {
   const bouncing = useRef(false);
 
@@ -95,7 +100,18 @@ export function DeskHeader({
             />
           </button>
         </div>
-        <DayPicker days={days} date={date} onChange={onDate} />
+        <div className="desk-date-cluster">
+          <button
+            type="button"
+            className={`desk-today-btn${todayActive ? " is-active" : ""}`}
+            disabled={todayActive}
+            aria-current={todayActive ? "date" : undefined}
+            onClick={onToday}
+          >
+            Heutiger Tag
+          </button>
+          <DayPicker days={days} date={date} onChange={onDate} />
+        </div>
       </div>
     </header>
   );

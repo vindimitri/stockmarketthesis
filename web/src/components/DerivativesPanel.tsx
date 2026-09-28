@@ -1,10 +1,10 @@
 import { useMemo, useRef } from "react";
-import type { WindowFilter } from "../desk";
-import { berlinTimeLabel, formatDayShort, formatEuro, formatPct, formatPrice } from "../format";
+import type { WindowFilter } from "../lib/desk";
+import { berlinTimeLabel, formatDayShort, formatEuro, formatPct, formatPrice } from "../lib/format";
 import type { NumberedKnockout } from "../hooks/useKnockouts";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 import { START_CAPITAL } from "../lib/simulateKnockouts";
-import { isMobileUi } from "../media";
+import { isMobileUi } from "../lib/media";
 
 function tickClass(pct: number | null): string {
   // Match displayed 2-decimal %: ±0,00 % → flat/black

@@ -169,6 +169,47 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+.desk-date-cluster {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.desk-today-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.65rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 2px;
+  border: 1px solid #7eb3ff;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.14), transparent 42%),
+    linear-gradient(160deg, #1f567f 0%, #163e5e 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 180ms ease, background 180ms ease, opacity 180ms ease;
+}
+
+.desk-today-btn:hover:not(:disabled) {
+  border-color: #5aa4ff;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0.1));
+}
+
+.desk-today-btn:disabled,
+.desk-today-btn.is-active {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .desk-date-btn {
   display: flex;
   flex-direction: column;
@@ -1294,6 +1335,16 @@ body {
     font-size: 1.25rem;
   }
 
+  .desk-date-cluster {
+    gap: 0.35rem;
+  }
+
+  .desk-today-btn {
+    min-height: 2.75rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.625rem;
+  }
+
   .desk-date-btn {
     min-width: 9.5rem;
     min-height: 2.75rem;
@@ -1419,6 +1470,18 @@ body {
   .desk-figure {
     height: 2.35rem;
     width: 2.35rem;
+  }
+
+  .desk-date-cluster {
+    max-width: 58vw;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .desk-today-btn {
+    min-height: 2.85rem;
+    padding: 0.32rem 0.5rem;
+    font-size: 0.58rem;
   }
 
   .desk-date-btn {

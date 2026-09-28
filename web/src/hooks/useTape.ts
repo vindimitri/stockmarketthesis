@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { TradeRow } from "../api";
-import { isMobileUi } from "../media";
-import { countDue, DEFAULT_TAPE_DELAY_MS } from "../tape";
+import type { TradeRow } from "../lib/api";
+import { isMobileUi } from "../lib/media";
+import { countDue, DEFAULT_TAPE_DELAY_MS } from "../lib/tape";
 import { getScrollIdle } from "./useScrollIdle";
 
 const TAPE_TICK_DESKTOP_MS = 250;

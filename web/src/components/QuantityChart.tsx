@@ -9,9 +9,9 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { berlinAxisTickLabel, berlinTimeLabel, formatInt } from "./format";
-import { attachTouchCrosshair } from "./lib/chartTouch";
-import type { LinePoint } from "./linePoints";
+import { berlinAxisTickLabel, berlinTimeLabel, formatInt } from "../lib/format";
+import { attachTouchCrosshair } from "../lib/chartTouch";
+import type { LinePoint } from "../lib/linePoints";
 
 const BG = "#ffffff";
 const GRID = "#e4e9f2";

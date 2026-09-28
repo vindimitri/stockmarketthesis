@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { subscribeAch } from "./achSound";
+import { subscribeAch } from "./lib/achSound";
 import { DeskHeader } from "./components/DeskHeader";
 import { DerivativesPanel } from "./components/DerivativesPanel";
 import { QuotePanel } from "./components/QuotePanel";
@@ -7,6 +7,7 @@ import { useDeskData } from "./hooks/useDeskData";
 import { useDeskView } from "./hooks/useDeskView";
 import { useKnockouts } from "./hooks/useKnockouts";
 import { useScrollIdleBridge } from "./hooks/useScrollIdle";
+import { berlinTodayYmd } from "./lib/format";
 
 export default function App() {
   useScrollIdleBridge(160);
@@ -50,7 +51,16 @@ export default function App() {
       className={`desk-shell${soundMs ? " is-sounding" : ""}`}
       style={soundMs ? ({ "--sound-ms": `${soundMs}ms` } as CSSProperties) : undefined}
     >
-      <DeskHeader days={days} date={date} onDate={setDate} />
+      <DeskHeader
+        days={days}
+        date={date}
+        onDate={setDate}
+        todayActive={date === berlinTodayYmd() && view.windowFilter === "day"}
+        onToday={() => {
+          view.setWindowFilter("day");
+          setDate(berlinTodayYmd());
+        }}
+      />
 
       {error && (
         <div className="mx-4 mt-3 border border-desk-down-soft bg-desk-down-soft px-4 py-2 text-sm text-desk-down">

@@ -1,5 +1,5 @@
-import type { TradeRow } from "../api";
-import { parseYmd } from "../format";
+import type { TradeRow } from "./api";
+import { parseYmd } from "./format";
 
 const MONTH_SHORT = [
   "Jan",

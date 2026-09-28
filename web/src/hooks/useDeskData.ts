@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type DayRow, type TradeRow } from "../api";
-import { berlinTodayYmd } from "../format";
-import { DEFAULT_TAPE_DELAY_MS, mergeTrades } from "../tape";
+import { api, type DayRow, type TradeRow } from "../lib/api";
+import { berlinTodayYmd } from "../lib/format";
+import { DEFAULT_TAPE_DELAY_MS, mergeTrades } from "../lib/tape";
 import { useTape } from "./useTape";
 import { getScrollIdle } from "./useScrollIdle";
 

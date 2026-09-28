@@ -1,16 +1,16 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import type { LinePoint } from "../linePoints";
-import type { BucketOption, WindowFilter } from "../desk";
-import { formatInt, formatPct, formatPrice } from "../format";
-import { isMobileUi } from "../media";
-import type { TradeMark } from "../PriceChart";
+import type { LinePoint } from "../lib/linePoints";
+import type { BucketOption, WindowFilter } from "../lib/desk";
+import { formatInt, formatPct, formatPrice } from "../lib/format";
+import { isMobileUi } from "../lib/media";
+import type { TradeMark } from "./PriceChart";
 import { WindowButton } from "./ui";
 
 const PriceChart = lazy(() =>
-  import("../PriceChart").then((mod) => ({ default: mod.PriceChart })),
+  import("./PriceChart").then((mod) => ({ default: mod.PriceChart })),
 );
 const QuantityChart = lazy(() =>
-  import("../QuantityChart").then((mod) => ({ default: mod.QuantityChart })),
+  import("./QuantityChart").then((mod) => ({ default: mod.QuantityChart })),
 );
 
 function EmptyNote({ children }: { children: string }) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type DayRow, type TradeRow } from "../api";
-import { DEFAULT_CONTRACT } from "../desk";
-import { berlinTodayYmd } from "../format";
+import { api, type DayRow, type TradeRow } from "../lib/api";
+import { DEFAULT_CONTRACT } from "../lib/desk";
+import { berlinTodayYmd } from "../lib/format";
 import {
   applyBankroll,
   lastClosedMarkSpot,

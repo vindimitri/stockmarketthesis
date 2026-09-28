@@ -1,5 +1,5 @@
 import type { IChartApi, ISeriesApi, SeriesType, Time } from "lightweight-charts";
-import { isMobileUi } from "../media";
+import { isMobileUi } from "./media";
 
 /**
  * Mobile crosshair scrub: the marker follows the finger.

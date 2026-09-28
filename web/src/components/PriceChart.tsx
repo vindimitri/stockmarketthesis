@@ -16,10 +16,10 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { attachTouchCrosshair } from "./lib/chartTouch";
-import { isMobileUi } from "./media";
-import { lineRange, type LinePoint } from "./linePoints";
-import { berlinAxisTickLabel, berlinTimeLabel, formatPrice } from "./format";
+import { attachTouchCrosshair } from "../lib/chartTouch";
+import { isMobileUi } from "../lib/media";
+import { lineRange, type LinePoint } from "../lib/linePoints";
+import { berlinAxisTickLabel, berlinTimeLabel, formatPrice } from "../lib/format";
 
 const BG = "#ffffff";
 const GRID = "#e4e9f2";

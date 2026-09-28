@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { bufferAch, bufferPanik } from "./achSound";
+import { bufferAch, bufferPanik } from "./lib/achSound";
 import App from "./App";
 import "./index.css";
 

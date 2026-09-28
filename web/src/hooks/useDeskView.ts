@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { TradeRow } from "../api";
-import { DEFAULT_CONTRACT, bucketsFor, defaultBucket, type WindowFilter } from "../desk";
-import { berlinChartRange, sliceTradesByBerlinHours } from "../format";
-import { toLinePoints, toSessionPoints, toSessionVolumePoints, toVolumePoints } from "../linePoints";
+import type { TradeRow } from "../lib/api";
+import { DEFAULT_CONTRACT, bucketsFor, defaultBucket, type WindowFilter } from "../lib/desk";
+import { berlinChartRange, sliceTradesByBerlinHours } from "../lib/format";
+import { toLinePoints, toSessionPoints, toSessionVolumePoints, toVolumePoints } from "../lib/linePoints";
 import { contractLabel, groupContracts, summarizeTrades } from "../lib/trades";
 
 export function useDeskView(date: string, trades: TradeRow[], taped: TradeRow[]) {
