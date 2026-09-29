@@ -1050,6 +1050,38 @@ body {
   color: #4a5568;
 }
 
+.desk-deriv-px.is-pending,
+.desk-deriv-foot-pending {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #6b7585;
+  -webkit-text-fill-color: #6b7585;
+  background: none;
+}
+
+.desk-deriv-foot.is-pending .desk-deriv-foot-val.is-current {
+  background: none;
+  -webkit-text-fill-color: #9fd0ff;
+  color: #9fd0ff;
+  animation: none;
+}
+
+.desk-deriv-foot-col-span {
+  grid-column: 1 / -1;
+}
+
+.desk-deriv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 8rem;
+  padding: 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #6b7585;
+}
+
 .desk-deriv-row.is-up .desk-deriv-px,
 .desk-deriv-row.is-up .desk-deriv-chg {
   color: #1a8a5c;

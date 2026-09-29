@@ -20,10 +20,8 @@ export type NumberedKnockout = BankedKnockout<KnockoutRow> & {
   title: string;
 };
 
-/** Newest days first, then older chunks — avoids N parallel fetches on boot. */
-const KO_FIRST_BATCH = 8;
-const KO_CHUNK = 4;
-const KO_CONCURRENCY = 2;
+/** Parallel fetch — we gate UI on full history, so chunking only adds wait. */
+const KO_CONCURRENCY = 8;
 
 function preferContract(trades: TradeRow[]): TradeRow[] {
   const hit = trades.filter((trade) => trade.contract_date === DEFAULT_CONTRACT);
@@ -83,9 +81,18 @@ function numberKnockouts(rows: BankedKnockout<KnockoutRow>[]): NumberedKnockout[
   });
 }
 
-export function useKnockouts(days: DayRow[]) {
+/**
+ * History loads in chunks; today polls fast. Bankroll compounds over ALL days,
+ * so capital is withheld until historyReady — otherwise reload flashes START_CAPITAL
+ * applied only to today's open fill.
+ */
+export function useKnockouts(days: DayRow[]): {
+  rows: NumberedKnockout[];
+  historyReady: boolean;
+} {
   const [rows, setRows] = useState<KnockoutRow[]>([]);
   const [todayTrades, setTodayTrades] = useState<TradeRow[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
   const dayKey = useMemo(() => days.map((day) => day.berlin_date).join("|"), [days]);
   const today = berlinTodayYmd();
   const genRef = useRef(0);
@@ -93,28 +100,26 @@ export function useKnockouts(days: DayRow[]) {
   useEffect(() => {
     if (!dayKey) {
       setRows([]);
+      setHistoryReady(false);
       return;
     }
     const dates = dayKey.split("|").filter((ymd) => ymd !== today);
     const gen = ++genRef.current;
     let cancelled = false;
+    setHistoryReady(false);
 
     (async () => {
-      const first = dates.slice(0, KO_FIRST_BATCH);
-      const rest = dates.slice(KO_FIRST_BATCH);
-      const firstFills = (await mapPool(first, KO_CONCURRENCY, loadDayFills)).flat();
-      if (cancelled || gen !== genRef.current) return;
-      setRows(firstFills);
-
-      for (let i = 0; i < rest.length; i += KO_CHUNK) {
+      if (!dates.length) {
         if (cancelled || gen !== genRef.current) return;
-        const chunk = rest.slice(i, i + KO_CHUNK);
-        const chunkFills = (await mapPool(chunk, KO_CONCURRENCY, loadDayFills)).flat();
-        if (cancelled || gen !== genRef.current) return;
-        if (chunkFills.length) {
-          setRows((prev) => [...prev, ...chunkFills]);
-        }
+        setRows([]);
+        setHistoryReady(true);
+        return;
       }
+
+      const fills = (await mapPool(dates, KO_CONCURRENCY, loadDayFills)).flat();
+      if (cancelled || gen !== genRef.current) return;
+      setRows(fills);
+      setHistoryReady(true);
     })();
 
     return () => {
@@ -148,8 +153,10 @@ export function useKnockouts(days: DayRow[]) {
 
   const todayRows = useMemo(() => fillsFor(today, todayTrades), [today, todayTrades]);
 
-  return useMemo(() => {
+  const numbered = useMemo(() => {
     const merged = [...rows.filter((row) => row.date !== today), ...todayRows];
     return numberKnockouts(applyBankroll(merged));
   }, [rows, todayRows, today]);
+
+  return { rows: numbered, historyReady };
 }

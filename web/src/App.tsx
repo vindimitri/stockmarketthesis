@@ -14,10 +14,10 @@ export default function App() {
   const { days, date, setDate, trades, loading, error, live, ingestActive, taped } =
     useDeskData();
   const view = useDeskView(date, trades, taped);
-  const knockoutRows = useKnockouts(days);
+  const { rows: knockoutRows, historyReady: knockoutsReady } = useKnockouts(days);
   const [soundMs, setSoundMs] = useState(0);
   const tradeMarks = useMemo(() => {
-    if (view.windowFilter !== "1718") return [];
+    if (!knockoutsReady || view.windowFilter !== "1718") return [];
     return knockoutRows
       .filter((item) => item.date === date)
       .map((row) => ({
@@ -26,7 +26,7 @@ export default function App() {
         changePct: row.changePct,
         title: row.title,
       }));
-  }, [view.windowFilter, knockoutRows, date]);
+  }, [view.windowFilter, knockoutRows, date, knockoutsReady]);
 
   useEffect(() => {
     let until = 0;
@@ -93,6 +93,7 @@ export default function App() {
         />
         <DerivativesPanel
           rows={knockoutRows}
+          bankrollReady={knockoutsReady}
           date={date}
           windowFilter={view.windowFilter}
           onOpen={(ymd) => {

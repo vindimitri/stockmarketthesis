@@ -93,19 +93,22 @@ function KnockoutRowButton({
 
 export function DerivativesPanel({
   rows,
+  bankrollReady = true,
   date,
   windowFilter,
   onOpen,
 }: {
   rows: NumberedKnockout[];
+  bankrollReady?: boolean;
   date: string;
   windowFilter: WindowFilter;
   onOpen: (ymd: string) => void;
 }) {
   const listRef = useRef<HTMLUListElement | null>(null);
   const rowH = isMobileUi() ? ROW_H_MOBILE : ROW_H_DESK;
+  const showRows = bankrollReady && rows.length > 0;
   // Virtualization re-renders mid-scroll — skip on phones for native smoothness.
-  const virtualize = !isMobileUi() && rows.length >= VIRTUAL_MIN;
+  const virtualize = !isMobileUi() && showRows && rows.length >= VIRTUAL_MIN;
   const { start, end, offsetTop, totalHeight } = useVirtualWindow(
     virtualize ? rows.length : 0,
     rowH,
@@ -114,6 +117,15 @@ export function DerivativesPanel({
   const slice = virtualize ? rows.slice(start, end) : rows;
 
   const summary = useMemo(() => {
+    if (!bankrollReady) {
+      return {
+        start: START_CAPITAL,
+        current: null as number | null,
+        changePct: null as number | null,
+        live: false,
+        markKey: "pending",
+      };
+    }
     const live = (() => {
       for (let i = rows.length - 1; i >= 0; i -= 1) {
         if (rows[i].open) return rows[i];
@@ -128,12 +140,11 @@ export function DerivativesPanel({
       current,
       changePct,
       live: Boolean(live),
-      // Tie footer paint to live mark so React always refreshes on tick.
       markKey: live
         ? `${live.buyTime}|${live.price}|${live.capitalAfter}`
         : `${current}|${changePct}`,
     };
-  }, [rows]);
+  }, [rows, bankrollReady]);
 
   return (
     <aside className="desk-card desk-deriv-card">
@@ -143,7 +154,11 @@ export function DerivativesPanel({
         </div>
       </div>
       <div className="desk-deriv-body">
-        {rows.length ? (
+        {!bankrollReady ? (
+          <div className="desk-deriv-loading" role="status" aria-live="polite">
+            Knock-outs laden…
+          </div>
+        ) : showRows ? (
           <ul
             ref={listRef}
             className={`desk-deriv-list${virtualize ? " is-virtual" : ""}`}
@@ -171,20 +186,33 @@ export function DerivativesPanel({
       <div
         className={`desk-pane-head desk-deriv-foot ${tickClass(summary.changePct)}${
           summary.live ? " is-live" : ""
-        }`}
+        }${bankrollReady ? "" : " is-pending"}`}
         data-mark={summary.markKey}
       >
-        <div className="desk-deriv-foot-col">
-          <span className="desk-deriv-foot-label">Startkapital</span>
-          <span className="desk-deriv-foot-val">{formatEuro(summary.start)}</span>
-        </div>
-        <div className="desk-deriv-foot-col">
-          <span className="desk-deriv-foot-label">{summary.live ? "Kapital · live" : "Kapital"}</span>
-          <span className="desk-deriv-foot-val is-current" key={summary.markKey}>
-            {formatEuro(summary.current)}{" "}
-            <span className="desk-deriv-foot-chg">({pctMark(summary.changePct)})</span>
-          </span>
-        </div>
+        {!bankrollReady ? (
+          <div className="desk-deriv-foot-col desk-deriv-foot-col-span">
+            <span className="desk-deriv-foot-label">Kapital</span>
+            <span className="desk-deriv-foot-val is-current">
+              <span className="desk-deriv-foot-pending">lädt…</span>
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="desk-deriv-foot-col">
+              <span className="desk-deriv-foot-label">Startkapital</span>
+              <span className="desk-deriv-foot-val">{formatEuro(summary.start)}</span>
+            </div>
+            <div className="desk-deriv-foot-col">
+              <span className="desk-deriv-foot-label">
+                {summary.live ? "Kapital · live" : "Kapital"}
+              </span>
+              <span className="desk-deriv-foot-val is-current" key={summary.markKey}>
+                {formatEuro(summary.current ?? START_CAPITAL)}{" "}
+                <span className="desk-deriv-foot-chg">({pctMark(summary.changePct)})</span>
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );
